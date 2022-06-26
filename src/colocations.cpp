@@ -7,74 +7,70 @@
 
 using namespace std;
 
-namespace hyper_wavelet {
-
-inline double MatElem(const PeacewiseLinearFunction& w, double x) {
-    if (w.a == x or w.b == x) {
-        cout << "a = " << w.a << endl 
-             << "b = " << w.b << endl
-             << "x = " << x << endl;
-        throw invalid_argument("wrong integraton point");
+double IntPow(int a, int power) {
+    int result = 1;
+    while (power > 0) {
+        if (power % 2 == 0) {
+            power /= 2;
+            a *= a;
+        } else {
+            power--;
+            result *= a;
+        }
     }
-
-    return w(w.b) / (w.b - x) - w(w.a) / (w.a - x) +
-            w.A * log(abs(x - w.a)) - w.B * log(abs(w.b - x)); 
+    return result;
 }
 
-ColocationMethod::ColocationMethod(int numLevels): _basis(numLevels) {
-    int dim = _basis.Dimension();
-    int numOfSupports = dim;
-    double step = 1. / numOfSupports; 
+namespace hyper_wavelet {
 
-    _points.resize(dim);
-
-    for (int i = 0; i < dim; i++) {
-        _points[i] = step / 2 + i * step;
+ColocationMethod::ColocationMethod(int numLevels, double a, double b):
+    _numLevels(numLevels), _dim(IntPow(2, numLevels)), _a(a), _b(b) {
+    
+    int numOfSupports = _dim / 2;
+    _x.resize(numOfSupports + 1);
+    double h = (_b - _a) / numOfSupports;
+    for (int i = 0; i < _x.size(); i++) {
+        _x[i] = _a + i * h;
     }
 
-    ofstream fout("points.txt", ios::out);
-    for (int i = 0; i < dim; i++) {
-        fout << _points[i] << '\n';
+    _x0.resize(_dim);
+    for (int i = 0; i < numOfSupports; i++) {
+        _x0[2 * i] = _x[i] + h / 4;
+        _x0[2 * i + 1] = _x[i] + 3 * h / 4;
     }
 }
 
 void ColocationMethod::FormFullMatrix() {
-    int dim = _basis.Dimension();
-    _mat.resize(dim, dim);
-    const auto& w = _basis.Data();
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            _mat(i, j) = MatElem(w[i], _points[j]);
+    _mat.resize(_dim, _dim);
+    const double h = (_b - _a) / (_x.size() - 1);
+    for (int j = 0; j < _dim; j++) {
+        int i = 0;
+        for (int k = 0; k < _dim / 2; k++) {
+            _mat(j, i) = _x[k+1] / (_x[k+1] - _x0[j]) - _x[k] / (_x[k] - _x0[j]) -
+                         log(abs(_x[k+1] - _x0[j])) + log(abs(_x[k] - _x0[j]));
+            ++i;
+            _mat(j, i) = 1. / (_x[k+1] - _x0[j]) - 1. / (_x[k] - _x0[j]);
+            ++i;       
         }
     }
 }
 
 void ColocationMethod::FormRhs(const function<double(double)>& f) {
-    int dim = _basis.Dimension();
-    _rhs.resize(dim);
-    for (int i = 0; i < dim; i++) {
-        _rhs(i) = f(_points[i]);
+    _rhs.resize(_dim);
+    for (int i = 0; i < _dim; i++) {
+        _rhs(i) = f(_x0[i]);
     }
 }
 
 void ColocationMethod::PrintSolution(const Eigen::VectorXd& x) const {
-    int dim = _basis.Dimension();
-    Eigen::MatrixXd valuesMatrix(dim, dim);
-    const auto& w = _basis.Data();
-    for (int i = 0; i < dim; i++) {
-        for (int j = 0; j < dim; j++) {
-            valuesMatrix(i, j) = w[j](_points[i]);
-        }
+    Eigen::VectorXd solution(_dim / 2);
+    int i = 0;
+    for (int k = 0; k < _dim / 2; k++) {
+        double v = (_x[k] + _x[k+1]) / 2;
+        solution[k] = v * x(2 * k) + x(2 * k + 1);
     }
-    Eigen::VectorXd solution = valuesMatrix * x;
-    ofstream fout("solution.txt", ios::out);
+    ofstream fout("sol.txt", ios::out);
     fout << solution << endl;
-    fout.close();
-    fout.open("values.txt", ios::out);
-    fout << valuesMatrix << endl;
-    fout.close();
-    fout.open("x.txt", ios::out);
-    fout << x << endl;
 }
 
 }

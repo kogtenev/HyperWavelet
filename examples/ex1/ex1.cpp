@@ -11,20 +11,24 @@ function<double(double)> f = [](double x) {return 1.;};
 
 int main(int argc, char* argv[]) {
     int numLevels = stoi(argv[1]);
+    double a = stod(argv[2]);
+    double b = stod(argv[3]);
 
-    ColocationMethod method(numLevels);
+    ColocationMethod method(numLevels, a, b);
     method.FormFullMatrix();
     method.FormRhs(f);
 
     const Eigen::MatrixXd& A = method.GetFullMatrix();
     const Eigen::VectorXd& rhs = method.GetRhs();
-    const Eigen::VectorXd& x = A.fullPivLu().solve(rhs);
 
     ofstream fout("mat.txt", ios::out);
     fout << A << endl;
     fout.close();
-    fout.open("rhs.txt", ios::out);
-    fout << rhs << endl;
+
+    Eigen::VectorXd x = A.fullPivLu().solve(rhs);
+    fout.open("x.txt", ios::out);
+    fout << x << endl;
+    fout.close();
 
     method.PrintSolution(x);
 
