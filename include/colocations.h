@@ -7,9 +7,9 @@
 
 namespace hyper_wavelet {
 
-class ColocationMethod {
+class ColocationsMethod {
 public:
-    ColocationMethod(int numLevels, double a, double b);
+    ColocationsMethod(int numLevels, double a, double b);
     void FormFullMatrix();
     void FormRhs(const std::function<double(double)>& f);
     const Eigen::MatrixXd& GetFullMatrix() const {return _mat;}
@@ -18,10 +18,15 @@ public:
     void PrintSolution(const Eigen::VectorXd& x) const;
 
 private:
+    // dimension of linear system
     const int _dim;
+    // number of refinment levels
     const int _numLevels;
+    // borders of the interval
     const double _a, _b;
+    // colocation points
     std::vector<double> _x0;
+    // points of the interval refinment 
     std::vector<double> _x;
     Eigen::MatrixXd _mat;
     Eigen::VectorXd _rhs;

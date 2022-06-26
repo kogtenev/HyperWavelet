@@ -23,8 +23,12 @@ double IntPow(int a, int power) {
 
 namespace hyper_wavelet {
 
-ColocationMethod::ColocationMethod(int numLevels, double a, double b):
-    _numLevels(numLevels), _dim(IntPow(2, numLevels)), _a(a), _b(b) {
+ColocationsMethod::ColocationsMethod(int numLevels, double a, double b):
+    _numLevels(numLevels), _dim(2 * IntPow(2, numLevels)), _a(a), _b(b) {
+
+    cout << "Colocation method on interval: (" << a << ", " << b << ")" << endl;
+    cout << "Number of refinment levels: " << numLevels << endl; 
+    cout << "Dimension of linear system: " << _dim << endl << endl;
     
     int numOfSupports = _dim / 2;
     _x.resize(numOfSupports + 1);
@@ -40,7 +44,9 @@ ColocationMethod::ColocationMethod(int numLevels, double a, double b):
     }
 }
 
-void ColocationMethod::FormFullMatrix() {
+void ColocationsMethod::FormFullMatrix() {
+    cout << "Foming dense system matrix" << endl;
+
     _mat.resize(_dim, _dim);
     const double h = (_b - _a) / (_x.size() - 1);
     for (int j = 0; j < _dim; j++) {
@@ -55,14 +61,16 @@ void ColocationMethod::FormFullMatrix() {
     }
 }
 
-void ColocationMethod::FormRhs(const function<double(double)>& f) {
+void ColocationsMethod::FormRhs(const function<double(double)>& f) {
+    cout << "Froming rhs" << endl;
     _rhs.resize(_dim);
     for (int i = 0; i < _dim; i++) {
         _rhs(i) = f(_x0[i]);
     }
 }
 
-void ColocationMethod::PrintSolution(const Eigen::VectorXd& x) const {
+void ColocationsMethod::PrintSolution(const Eigen::VectorXd& x) const {
+    cout << "Printing solution" << endl;
     Eigen::VectorXd solution(_dim / 2);
     int i = 0;
     for (int k = 0; k < _dim / 2; k++) {
