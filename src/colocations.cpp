@@ -24,7 +24,8 @@ double IntPow(int a, int power) {
 namespace hyper_wavelet {
 
 ColocationsMethod::ColocationsMethod(int numLevels, double a, double b):
-    _numLevels(numLevels), _dim(2 * IntPow(2, numLevels)), _a(a), _b(b) {
+    _numLevels(numLevels), _dim(2 * IntPow(2, numLevels)), 
+    _basis(a, b, 2 * IntPow(2, numLevels)), _a(a), _b(b) {
 
     cout << "Colocation method on interval: (" << a << ", " << b << ")" << endl;
     cout << "Number of refinment levels: " << numLevels << endl; 
@@ -49,14 +50,10 @@ void ColocationsMethod::FormFullMatrix() {
 
     _mat.resize(_dim, _dim);
     const double h = (_b - _a) / (_x.size() - 1);
+    const auto& w = _basis.Data();
     for (int j = 0; j < _dim; j++) {
-        int i = 0;
-        for (int k = 0; k < _dim / 2; k++) {
-            _mat(j, i) = _x[k+1] / (_x[k+1] - _x0[j]) - _x[k] / (_x[k] - _x0[j]) -
-                         log(abs(_x[k+1] - _x0[j])) + log(abs(_x[k] - _x0[j]));
-            ++i;
-            _mat(j, i) = 1. / (_x[k+1] - _x0[j]) - 1. / (_x[k] - _x0[j]);
-            ++i;       
+        for (int i = 0; i < _dim; i++) {
+            _mat(j, i) = w[i].HyperSingularIntegral(_x0[j]);      
         }
     }
 }
@@ -71,12 +68,15 @@ void ColocationsMethod::FormRhs(const function<double(double)>& f) {
 
 void ColocationsMethod::PrintSolution(const Eigen::VectorXd& x) const {
     cout << "Printing solution" << endl;
-    Eigen::VectorXd solution(_dim / 2);
-    int i = 0;
-    for (int k = 0; k < _dim / 2; k++) {
-        double v = (_x[k] + _x[k+1]) / 2;
-        solution[k] = v * x(2 * k) + x(2 * k + 1);
+    Eigen::VectorXd solution(_dim);
+    Eigen::MatrixXd valuesMatrix(_dim, _dim);
+    const auto& w = _basis.Data();
+    for (int i = 0; i < _dim; i++) {
+        for (int j = 0; j < _dim; j++) {
+            valuesMatrix(i, j) = w[j](_x0[i]);
+        }
     }
+    solution = valuesMatrix * x;
     ofstream fout("sol.txt", ios::out);
     fout << solution << endl;
 }

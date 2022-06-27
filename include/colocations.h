@@ -28,6 +28,8 @@ private:
     std::vector<double> _x0;
     // points of the interval refinment 
     std::vector<double> _x;
+    // the basis functions
+    Basis _basis;
     Eigen::MatrixXd _mat;
     Eigen::VectorXd _rhs;
 };
