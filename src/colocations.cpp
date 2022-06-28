@@ -7,25 +7,11 @@
 
 using namespace std;
 
-double IntPow(int a, int power) {
-    int result = 1;
-    while (power > 0) {
-        if (power % 2 == 0) {
-            power /= 2;
-            a *= a;
-        } else {
-            power--;
-            result *= a;
-        }
-    }
-    return result;
-}
-
 namespace hyper_wavelet {
 
 ColocationsMethod::ColocationsMethod(int numLevels, double a, double b):
     _numLevels(numLevels), _dim(2 * IntPow(2, numLevels)), 
-    _basis(a, b, 2 * IntPow(2, numLevels)), _a(a), _b(b) {
+    _basis(a, b, numLevels), _a(a), _b(b) {
 
     cout << "Colocation method on interval: (" << a << ", " << b << ")" << endl;
     cout << "Number of refinment levels: " << numLevels << endl; 
@@ -46,7 +32,7 @@ ColocationsMethod::ColocationsMethod(int numLevels, double a, double b):
 }
 
 void ColocationsMethod::FormFullMatrix() {
-    cout << "Foming dense system matrix" << endl;
+    cout << "Forming dense system matrix" << endl;
 
     _mat.resize(_dim, _dim);
     const double h = (_b - _a) / (_x.size() - 1);
@@ -59,7 +45,7 @@ void ColocationsMethod::FormFullMatrix() {
 }
 
 void ColocationsMethod::FormRhs(const function<double(double)>& f) {
-    cout << "Froming rhs" << endl;
+    cout << "Forming rhs" << endl;
     _rhs.resize(_dim);
     for (int i = 0; i < _dim; i++) {
         _rhs(i) = f(_x0[i]);

@@ -14,7 +14,7 @@ public:
     void FormRhs(const std::function<double(double)>& f);
     const Eigen::MatrixXd& GetFullMatrix() const {return _mat;}
     const Eigen::VectorXd& GetRhs() const {return _rhs;}
-    double GetDimension() const {return _dim;}
+    int GetDimension() const {return _dim;}
     void PrintSolution(const Eigen::VectorXd& x) const;
 
 private:
