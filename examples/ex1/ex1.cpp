@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 
 #include "colocations.h"
+#include "helpers.h"
 
 using namespace std;
 using namespace hyper_wavelet;
@@ -22,6 +23,9 @@ int main(int argc, char* argv[]) {
     const Eigen::MatrixXd& A = method.GetFullMatrix();
     const Eigen::VectorXd& rhs = method.GetRhs();
 
+    cout << "\nAnilyzing system matrix" << endl;
+    PrintSparsityTable(A); 
+
     cout << "Printing matrix" << endl;
     ofstream fout("mat.txt", ios::out);
     fout << A << endl;
@@ -29,6 +33,8 @@ int main(int argc, char* argv[]) {
 
     cout << "Solving linear system" << endl;
     Eigen::VectorXd x = A.fullPivLu().solve(rhs);
+    cout << "\nAnilyzing solution vector" << endl;
+    PrintSparsityTable(x);
 
     method.PrintSolution(x);
 

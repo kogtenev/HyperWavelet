@@ -4,6 +4,7 @@
 
 #include "colocations.h"
 #include "bases.h"
+#include "helpers.h"
 
 using namespace std;
 

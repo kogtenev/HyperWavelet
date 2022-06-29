@@ -2,24 +2,11 @@
 #include <iostream>
 
 #include "bases.h"
+#include "helpers.h"
 
 using namespace std;
 
 namespace hyper_wavelet {
-
-int IntPow(int a, int power) {
-    int result = 1;
-    while (power > 0) {
-        if (power % 2 == 0) {
-            power /= 2;
-            a *= a;
-        } else {
-            power--;
-            result *= a;
-        }
-    }
-    return result;
-}
 
 double LinearFunction::HyperSingularIntegral(double x0) const {
     return (_A * _b + _B) / (_b - x0) - (_A * _a + _B) / (_a - x0) 
@@ -105,6 +92,3 @@ Basis::Basis(double a, double b, int numLevels):
 }
 
 }
-
-
-

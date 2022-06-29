@@ -6,7 +6,7 @@ namespace hyper_wavelet {
 
 class LinearFunction {
 public:
-    LinearFunction(): _A(0), _B(0), _a(0), _b(0) {}
+    LinearFunction(): _A(0.), _B(0.), _a(0.), _b(0.) {}
 
     LinearFunction(double A, double B, double a, double b):
         _A(A), _B(B), _a(a), _b(b) {}
@@ -57,8 +57,6 @@ private:
     int _dim;
     std::vector<PeacewiseLinearFunction> _data;
 };
-
-int IntPow(int a, int power);
 
 }
 
