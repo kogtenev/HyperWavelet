@@ -7,6 +7,22 @@
 
 namespace hyper_wavelet {
 
+class ConjugateSpace {
+public:
+    ConjugateSpace(double a, double b, int numLevels);
+    const std::vector<LinearFunctional>& Data() const {
+        return _data;
+    }
+    
+private:
+    double _a, _b;
+    int _numLevels;
+    int _dim;
+    std::vector<LinearFunctional> _data;
+
+};
+
+
 class ColocationsMethod {
 public:
     ColocationsMethod(int numLevels, double a, double b);
@@ -24,12 +40,10 @@ private:
     const int _numLevels;
     // borders of the interval
     const double _a, _b;
-    // colocation points
-    std::vector<double> _x0;
-    // points of the interval refinment 
-    std::vector<double> _x;
-    // the basis functions
+    
     Basis _basis;
+    ConjugateSpace _conjugateSpace;
+
     Eigen::MatrixXd _mat;
     Eigen::VectorXd _rhs;
 };

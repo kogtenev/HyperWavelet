@@ -8,6 +8,12 @@ using namespace std;
 
 namespace hyper_wavelet {
 
+LinearFunctional::LinearFunctional(
+    const Eigen::Vector4d& coefs, 
+    const Eigen::Vector4d& points, 
+    double a, double b): _coefs(coefs), _points(points) {}
+    
+
 double LinearFunction::HyperSingularIntegral(double x0) const {
     return (_A * _b + _B) / (_b - x0) - (_A * _a + _B) / (_a - x0) 
             - _A * log(abs(_b - x0)) + _A * log(abs(_a - x0)); 

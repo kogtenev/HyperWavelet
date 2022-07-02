@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <Eigen/Dense>
 
 namespace hyper_wavelet {
 
@@ -42,6 +43,26 @@ private:
     LinearFunction _left;
     LinearFunction _right;
 };
+
+
+class LinearFunctional {
+public:
+    LinearFunctional() = default;
+
+    LinearFunctional(
+        const Eigen::Vector4d& coefs, 
+        const Eigen::Vector4d& points,  
+        double a, double b
+    );
+
+    const Eigen::Vector4d& GetPoints() const {return _points;}
+    const Eigen::Vector4d& GetCoefs() const {return _coefs;} 
+
+private:
+    Eigen::Vector4d _coefs;
+    Eigen::Vector4d _points;    
+};
+
 
 class Basis {
 public:
