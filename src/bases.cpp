@@ -10,9 +10,18 @@ namespace hyper_wavelet {
 
 LinearFunctional::LinearFunctional(
     const Eigen::Vector4d& coefs, 
-    const Eigen::Vector4d& points, 
-    double a, double b): _coefs(coefs), _points(points) {}
+    double a, double b): _coefs(coefs) {
     
+    SetSupport(a, b);
+}
+
+void LinearFunctional::SetSupport(double a, double b) {
+    _points(0) = a + (b - a) / 6.;
+    _points(1) = a + (b - a) / 3.;
+    _points(2) = a + 2. * (b - a) / 3.;
+    _points(3) = a + 5. * (b - a) / 6.;
+}
+
 
 double LinearFunction::HyperSingularIntegral(double x0) const {
     return (_A * _b + _B) / (_b - x0) - (_A * _a + _B) / (_a - x0) 
@@ -54,10 +63,10 @@ Basis::Basis(double a, double b, int numLevels):
     _data.resize(_dim);
 
     const double sqrt3 = sqrt(3.);
-    const PeacewiseLinearFunction W_0_0 = {0., 1., 0., 1., 0., 1};
-    const PeacewiseLinearFunction W_0_1 = {2 * sqrt3, -sqrt3, 2 * sqrt3, -sqrt3, 0., 1.};
-    const PeacewiseLinearFunction W_1_0 = {-6., 1, -6., 5, 0., 1.};;
-    const PeacewiseLinearFunction W_1_1 = {-4. * sqrt3, sqrt3, 4 * sqrt3, -3 * sqrt3, 0., 1.};    
+    const PeacewiseLinearFunction W_0_0 = {-3., 2., -3., 2., 0., 1.};
+    const PeacewiseLinearFunction W_0_1 = {3., -1., 3., -1., 0., 1.};
+    const PeacewiseLinearFunction W_1_0 = {-4.5, 1., 1.5, -1., 0., 1.};
+    const PeacewiseLinearFunction W_1_1 = {-1.5, 0.5, 4.5, -3.5, 0., 1.};    
 
     _data[0] = W_0_0;
     _data[1] = W_0_1;

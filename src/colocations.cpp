@@ -13,27 +13,40 @@ namespace hyper_wavelet {
 ConjugateSpace::ConjugateSpace(double a, double b, int numLevels):
     _a(a), _b(b), _numLevels(numLevels), _dim(2 * IntPow(2, numLevels)) {
 
-    int numOfSupports = _dim / 2;
-    const double h = (_b - _a) / numOfSupports;
-    vector<double> _x(numOfSupports+1);
-    for (int i = 0; i < _x.size(); i++) {
-        _x[i] = _a + i * h;
-    }
-
-    vector<double> _x0(_dim);
-    for (int i = 0; i < numOfSupports; i++) {
-        _x0[2 * i] = _x[i] + h / 4;
-        _x0[2 * i + 1] = _x[i] + 3 * h / 4;
-    }
-
     _data.resize(_dim);
-    for (int i = 0; i < _dim; i++) {
-        Eigen::Vector4d coefs;
-        coefs.fill(0.);
-        coefs(3) = 1.;
-        Eigen::Vector4d points;
-        points.fill(_x0[i]);
-        _data[i] = {coefs, points, a, b};
+
+    Eigen::Vector4d coefs = {0., 1., 0., 0};
+    const LinearFunctional L_0_0(coefs, a, b);
+
+    coefs = {0., 0., 1., 0};
+    const LinearFunctional L_0_1(coefs, a, b);
+
+    coefs = {1., -1.5, 0.5, 0.};
+    const LinearFunctional L_1_0(coefs, a, b);
+
+    coefs = {0., 0.5, -1.5, 1.};
+    const LinearFunctional L_1_1(coefs, a, b);
+
+    _data[0] = L_0_0;
+    _data[1] = L_0_1;
+    _data[2] = L_1_0;
+    _data[3] = L_1_1;
+
+    double scale = (b - a);
+    int numOfSupports = 1;
+    int index = 4;
+
+    for (int level = 2; level <= numLevels; level++) {
+        numOfSupports *= 2;
+        scale /= 2;
+        for (int i = 0; i < numOfSupports; i++) {
+            _data[index] = L_1_0;
+            _data[index].SetSupport(a + scale * i, a + scale * (i + 1));
+            ++index;
+            _data[index] = L_1_1;
+            _data[index].SetSupport(a + scale * i, a + scale * (i + 1));
+            ++index;
+        }
     }
 }
 
@@ -82,9 +95,10 @@ void ColocationsMethod::PrintSolution(const Eigen::VectorXd& x) const {
     Eigen::MatrixXd valuesMatrix(_dim, _dim);
     const auto& w = _basis.Data();
     const auto& l = _conjugateSpace.Data();
+    const double h = (_b - _a) / _dim;
     for (int i = 0; i < _dim; i++) {
         for (int j = 0; j < _dim; j++) {
-            valuesMatrix(i, j) = w[j](l[i].GetPoints()(0));
+            valuesMatrix(i, j) = w[j](_a + h / 2. + i * h);
         }
     }
     solution = valuesMatrix * x;

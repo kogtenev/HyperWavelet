@@ -50,10 +50,12 @@ public:
     LinearFunctional() = default;
 
     LinearFunctional(
-        const Eigen::Vector4d& coefs, 
-        const Eigen::Vector4d& points,  
+        const Eigen::Vector4d& coefs,   
         double a, double b
     );
+
+    void SetSupport(double a, double b);
+    void Normalize(double norm);
 
     const Eigen::Vector4d& GetPoints() const {return _points;}
     const Eigen::Vector4d& GetCoefs() const {return _coefs;} 
