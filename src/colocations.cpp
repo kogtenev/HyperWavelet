@@ -78,6 +78,41 @@ void ColocationsMethod::FormFullMatrix() {
     }
 }
 
+void ColocationsMethod::FormTruncatedMatrix(double threshold) {
+    cout << "Forming truncated system matrix" << endl;
+
+    _truncMat.resize(_dim, _dim);
+    _truncMat.makeCompressed();
+    threshold *= (_b - _a);
+
+    const auto& l = _conjugateSpace.Data();
+    const auto& w = _basis.Data();
+    vector<Eigen::Triplet<double>> triplets;
+
+    for (int j = 0; j < _dim; j++) {
+        for (int i = 0; i < _dim; i++) {
+            const Interval& S1 = l[j].GetSupport();
+            const Interval& S2 = w[i].GetSupport();
+            if (Distance(S1, S2) <= threshold) {
+                const auto& c = l[j].GetCoefs();
+                const auto& p = l[j].GetPoints();
+                double value = c(0) * w[i].HyperSingularIntegral(p(0)) +
+                               c(1) * w[i].HyperSingularIntegral(p(1)) +
+                               c(2) * w[i].HyperSingularIntegral(p(2)) +
+                               c(3) * w[i].HyperSingularIntegral(p(3));
+
+                triplets.push_back({i, j, value}); 
+            }
+        }
+    }
+    _truncMat.setFromTriplets(triplets.begin(), triplets.end());
+
+    cout << "Truncated system matrix is formed\n"
+         << "Proportion of nonzeros: " 
+         << 1. * _truncMat.nonZeros() / _truncMat.size()
+         << endl << endl; 
+}
+
 void ColocationsMethod::FormRhs(const function<double(double)>& f) {
     cout << "Forming rhs" << endl;
     _rhs.resize(_dim);
@@ -89,6 +124,11 @@ void ColocationsMethod::FormRhs(const function<double(double)>& f) {
     }
 }
 
+const Eigen::SparseMatrix<double>& 
+ColocationsMethod::GetTruncatedMatrix() const {
+    return _truncMat;
+}
+
 void ColocationsMethod::PrintSolution(const Eigen::VectorXd& x) const {
     cout << "Printing solution" << endl;
     Eigen::VectorXd solution(_dim);
@@ -96,10 +136,12 @@ void ColocationsMethod::PrintSolution(const Eigen::VectorXd& x) const {
     const auto& w = _basis.Data();
     const auto& l = _conjugateSpace.Data();
     const double h = (_b - _a) / _dim;
-    for (int i = 0; i < _dim; i++) {
-        for (int j = 0; j < _dim; j++) {
-            valuesMatrix(i, j) = w[j](_a + h / 2. + i * h);
+    for (int j = 0; j < _dim; j++) {
+        valuesMatrix(0, j) = w[j](_a);
+        for (int i = 1; i < _dim - 1; i++) {
+            valuesMatrix(i, j) = w[j](_a + h / 2 + i * h);
         }
+        valuesMatrix(_dim - 1, j) = w[j](_b);
     }
     solution = valuesMatrix * x;
     ofstream fout("sol.txt", ios::out);

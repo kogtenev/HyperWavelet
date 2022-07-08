@@ -5,6 +5,12 @@
 
 namespace hyper_wavelet {
 
+struct Interval {
+    double a, b;
+};
+
+double Distance(const Interval& S1, const Interval& S2);
+
 class LinearFunction {
 public:
     LinearFunction(): _A(0.), _B(0.), _a(0.), _b(0.) {}
@@ -35,7 +41,10 @@ public:
 
     double HyperSingularIntegral(double x0) const;
     double operator() (double x) const;
+
     void SetSupport(double a, double b);
+    Interval GetSupport() const;
+
     void Normalize(double a);
     
 private:
@@ -55,6 +64,7 @@ public:
     );
 
     void SetSupport(double a, double b);
+    const Interval& GetSupport() const;
     void Normalize(double norm);
 
     const Eigen::Vector4d& GetPoints() const {return _points;}
@@ -62,7 +72,8 @@ public:
 
 private:
     Eigen::Vector4d _coefs;
-    Eigen::Vector4d _points;    
+    Eigen::Vector4d _points;
+    Interval _support;    
 };
 
 

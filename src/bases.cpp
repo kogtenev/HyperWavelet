@@ -8,6 +8,16 @@ using namespace std;
 
 namespace hyper_wavelet {
 
+double Distance(const Interval& S1, const Interval& S2) {
+    if (S1.b < S2.a) {
+        return S2.a - S1.b;
+    } else if (S2.b < S1.a) {
+        return S1.a - S2.b;
+    } else {
+        return 0.;
+    }
+}
+
 LinearFunctional::LinearFunctional(
     const Eigen::Vector4d& coefs, 
     double a, double b): _coefs(coefs) {
@@ -16,12 +26,16 @@ LinearFunctional::LinearFunctional(
 }
 
 void LinearFunctional::SetSupport(double a, double b) {
+    _support = {a, b};
     _points(0) = a + (b - a) / 6.;
     _points(1) = a + (b - a) / 3.;
     _points(2) = a + 2. * (b - a) / 3.;
     _points(3) = a + 5. * (b - a) / 6.;
 }
 
+const Interval& LinearFunctional::GetSupport() const {
+    return _support;
+} 
 
 double LinearFunction::HyperSingularIntegral(double x0) const {
     return (_A * _b + _B) / (_b - x0) - (_A * _a + _B) / (_a - x0) 
@@ -50,6 +64,10 @@ void PeacewiseLinearFunction::SetSupport(double a, double b) {
     _b = b;
     _left.SetSupport(a, (a + b) / 2);
     _right.SetSupport((a + b) / 2, b);
+}
+
+Interval PeacewiseLinearFunction::GetSupport() const {
+    return {_a, _b};
 }
 
 void PeacewiseLinearFunction::Normalize(double a) {

@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
 
 #include "bases.h"
 
@@ -26,11 +27,16 @@ private:
 class ColocationsMethod {
 public:
     ColocationsMethod(int numLevels, double a, double b);
+
     void FormFullMatrix();
+    void FormTruncatedMatrix(double threshold);
     void FormRhs(const std::function<double(double)>& f);
+
     const Eigen::MatrixXd& GetFullMatrix() const {return _mat;}
+    const Eigen::SparseMatrix<double>& GetTruncatedMatrix() const;
     const Eigen::VectorXd& GetRhs() const {return _rhs;}
     int GetDimension() const {return _dim;}
+
     void PrintSolution(const Eigen::VectorXd& x) const;
 
 private:
@@ -45,6 +51,7 @@ private:
     ConjugateSpace _conjugateSpace;
 
     Eigen::MatrixXd _mat;
+    Eigen::SparseMatrix<double> _truncMat;
     Eigen::VectorXd _rhs;
 };
 
