@@ -101,7 +101,7 @@ void ColocationsMethod::FormTruncatedMatrix(double threshold) {
                                c(2) * w[i].HyperSingularIntegral(p(2)) +
                                c(3) * w[i].HyperSingularIntegral(p(3));
 
-                triplets.push_back({i, j, value}); 
+                triplets.push_back({j, i, value}); 
             }
         }
     }
