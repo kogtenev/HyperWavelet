@@ -129,8 +129,8 @@ ColocationsMethod::GetTruncatedMatrix() const {
     return _truncMat;
 }
 
-void ColocationsMethod::PrintSolution(const Eigen::VectorXd& x) const {
-    cout << "Printing solution" << endl;
+void ColocationsMethod::
+PrintSolution(const Eigen::VectorXd& x, const string& fileName) const {
     Eigen::VectorXd solution(_dim);
     Eigen::MatrixXd valuesMatrix(_dim, _dim);
     const auto& w = _basis.Data();
@@ -144,7 +144,7 @@ void ColocationsMethod::PrintSolution(const Eigen::VectorXd& x) const {
         valuesMatrix(_dim - 1, j) = w[j](_b);
     }
     solution = valuesMatrix * x;
-    ofstream fout("sol.txt", ios::out);
+    ofstream fout(fileName, ios::out);
     fout << solution << endl;
 }
 

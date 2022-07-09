@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <ctime>
+
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
@@ -34,7 +36,9 @@ int main(int argc, char* argv[]) {
     fout.close();
 
     cout << "Solving full linear system" << endl;
-    Eigen::VectorXd x = A.fullPivLu().solve(rhs);
+    Profiler profiler;
+    Eigen::VectorXd x = A.lu().solve(rhs);
+    cout << "Time for solution: " << profiler.Toc() << " s." << endl;
     cout << "\nAnilyzing solution vector" << endl;
     PrintSparsityTable(x);
 
@@ -42,14 +46,16 @@ int main(int argc, char* argv[]) {
     const auto& sparseMatrix = method.GetTruncatedMatrix();
 
     cout << "Solving system with truncated matrix" << endl;
+    profiler.Tic();
     Eigen::SparseLU<Eigen::SparseMatrix<double>> lu(sparseMatrix);
     Eigen::VectorXd _x = lu.solve(rhs);
+    cout << "Time for solution: " << profiler.Toc() << " s." << endl;
     Eigen::VectorXd err = x - _x;
 
-    cout << "System with truncated matrix is solved" << endl;
     cout << "Relative error: " << err.norm() / x.norm() << endl;
 
-    method.PrintSolution(x);
+    method.PrintSolution(x, "sol.txt");
+    method.PrintSolution(_x, "sol_trunc.txt");
 
     return 0;
 }

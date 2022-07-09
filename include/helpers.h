@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 #include <iomanip>
+#include <ctime>
 
 #include <Eigen/Dense>
 
@@ -10,6 +11,17 @@ namespace hyper_wavelet {
 
 // return a^{power}
 int IntPow(int a, int power);
+
+class Profiler {
+public:
+    Profiler();
+    void Tic();
+    double Toc();
+
+private:
+    double _time;
+};
+
 
 template<typename T>
 void PrintSparsityTable(const Eigen::MatrixBase<T>& matrix) {

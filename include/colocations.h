@@ -37,7 +37,8 @@ public:
     const Eigen::VectorXd& GetRhs() const {return _rhs;}
     int GetDimension() const {return _dim;}
 
-    void PrintSolution(const Eigen::VectorXd& x) const;
+    void PrintSolution(
+        const Eigen::VectorXd& x, const std::string& fileName) const;
 
 private:
     // dimension of linear system
