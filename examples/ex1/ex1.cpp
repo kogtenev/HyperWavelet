@@ -19,6 +19,9 @@ int main(int argc, char* argv[]) {
     double a = stod(argv[2]);
     double b = stod(argv[3]);
     double threshold = stod(argv[4]);
+    double alpha = stod(argv[5]);
+    bool printFull = static_cast<bool>(stoi(argv[6]));
+    bool printTrunctated = static_cast<bool>(stoi(argv[7]));
 
     ColocationsMethod method(numLevels, a, b);
     method.FormFullMatrix();
@@ -28,12 +31,31 @@ int main(int argc, char* argv[]) {
     const Eigen::VectorXd& rhs = method.GetRhs();
 
     cout << "\nAnilyzing system matrix" << endl;
-    PrintSparsityTable(A); 
+    PrintSparsityTable(A);
+    {
+        cout << "Computing SVD" << endl;
+        Eigen::BDCSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullU);
+        const auto& sigma = svd.singularValues();
+        const Eigen::MatrixXd& U = svd.matrixU();
+        size_t dim = sigma.size();
+        cout << "Maximal singular value: " << sigma(0) << endl;
+        cout << "Minimal singular value: " << sigma(dim - 1) << endl;
+        cout << "Condition number: " << sigma(0) / sigma(dim - 1) << endl;
 
-    cout << "Printing matrix" << endl;
-    ofstream fout("mat.txt", ios::out);
-    fout << A << endl;
-    fout.close();
+        cout << "\nAnilysing rhs in singular basis" << endl;
+        const Eigen::VectorXd& rhsSingular = U.adjoint() * rhs;
+        PrintSparsityTable(rhsSingular);
+        ofstream fout("rhs_sing.txt", ios::out);
+        fout << rhsSingular;
+        fout.close();
+    } 
+
+    if (printFull) {
+        cout << "Printing full matrix" << endl;
+        ofstream fout("mat.txt", ios::out);
+        fout << A;
+        fout.close();
+    }
 
     cout << "Solving full linear system" << endl;
     Profiler profiler;
@@ -42,7 +64,7 @@ int main(int argc, char* argv[]) {
     cout << "\nAnilyzing solution vector" << endl;
     PrintSparsityTable(x);
 
-    method.FormTruncatedMatrix(threshold);
+    method.FormTruncatedMatrix(threshold, alpha, printTrunctated);
     const auto& sparseMatrix = method.GetTruncatedMatrix();
 
     cout << "Solving system with truncated matrix" << endl;

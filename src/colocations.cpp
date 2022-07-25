@@ -60,6 +60,10 @@ ColocationsMethod::ColocationsMethod(int numLevels, double a, double b):
     cout << "Dimension of linear system: " << _dim << endl << endl;
 }
 
+void ColocationsMethod::SetFredholmKernel(const function<double(double, double)>& K) {
+    _fredholmKernel.emplace(K);
+}
+
 void ColocationsMethod::FormFullMatrix() {
     cout << "Forming dense system matrix" << endl;
 
@@ -76,9 +80,18 @@ void ColocationsMethod::FormFullMatrix() {
                          c(3) * w[i].HyperSingularIntegral(p(3));    
         }
     }
+    /*if (_fredholmKernel.has_value()) {
+       for (int j = 0; j < _dim; j++) {
+            for (int i = 0; i < _dim; i++) {
+            // TODO: Finish later
+            } 
+        }
+    }*/
 }
 
-void ColocationsMethod::FormTruncatedMatrix(double threshold) {
+void ColocationsMethod::FormTruncatedMatrix(
+        double threshold, double reg, bool printMatrix) {
+
     cout << "Forming truncated system matrix" << endl;
 
     _truncMat.resize(_dim, _dim);
@@ -87,7 +100,6 @@ void ColocationsMethod::FormTruncatedMatrix(double threshold) {
 
     const auto& l = _conjugateSpace.Data();
     const auto& w = _basis.Data();
-    vector<Eigen::Triplet<double>> triplets;
 
     for (int j = 0; j < _dim; j++) {
         for (int i = 0; i < _dim; i++) {
@@ -101,16 +113,43 @@ void ColocationsMethod::FormTruncatedMatrix(double threshold) {
                                c(2) * w[i].HyperSingularIntegral(p(2)) +
                                c(3) * w[i].HyperSingularIntegral(p(3));
 
-                triplets.push_back({j, i, value}); 
+                if (i == j) {
+                    value += reg;
+                }
+
+                _triplets.push_back({j, i, value}); 
             }
         }
     }
-    _truncMat.setFromTriplets(triplets.begin(), triplets.end());
+
+    /*for (int j = 0; j < _dim; j++) {
+        for (int i = 0; i < _dim; i++) {
+            if (_fredholmKernel.has_value()) {
+
+            }
+        }
+    }*/
+
+    _truncMat.setFromTriplets(_triplets.begin(), _triplets.end());
 
     cout << "Truncated system matrix is formed\n"
          << "Proportion of nonzeros: " 
          << 1. * _truncMat.nonZeros() / _truncMat.size()
-         << endl << endl; 
+         << endl; 
+
+    // TODO: Learn about Eigen's sparse matrix output,
+    // refactor truncated matrix output.
+    if (printMatrix) {
+        ofstream fout("trunc_mat.txt", ios::out);
+        cout << "Printing truncated matrix" << endl;
+        for (const auto& triplet: _triplets) {
+            fout << triplet.col() << ' ' << triplet.row()
+                 << ' ' << triplet.value() << '\n';
+        }
+        fout.close();
+    }
+
+    cout << endl;
 }
 
 void ColocationsMethod::FormRhs(const function<double(double)>& f) {
@@ -145,7 +184,7 @@ PrintSolution(const Eigen::VectorXd& x, const string& fileName) const {
     }
     solution = valuesMatrix * x;
     ofstream fout(fileName, ios::out);
-    fout << solution << endl;
+    fout << solution;
 }
 
 }

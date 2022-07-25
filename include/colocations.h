@@ -28,14 +28,20 @@ class ColocationsMethod {
 public:
     ColocationsMethod(int numLevels, double a, double b);
 
+    void SetFredholmKernel(const std::function<double(double, double)>& K);
+
     void FormFullMatrix();
-    void FormTruncatedMatrix(double threshold);
+    void FormTruncatedMatrix(
+        double threshold, double reg = 0., bool printMatrix = true
+    );
     void FormRhs(const std::function<double(double)>& f);
 
     const Eigen::MatrixXd& GetFullMatrix() const {return _mat;}
     const Eigen::SparseMatrix<double>& GetTruncatedMatrix() const;
     const Eigen::VectorXd& GetRhs() const {return _rhs;}
-    int GetDimension() const {return _dim;}
+
+    void CalculateExactSolution();
+    const Eigen::VectorXd& GetExacSolution();
 
     void PrintSolution(
         const Eigen::VectorXd& x, const std::string& fileName) const;
@@ -47,13 +53,18 @@ private:
     const int _numLevels;
     // borders of the interval
     const double _a, _b;
+
+    std::optional<std::function<double(double, double)>> _fredholmKernel;
     
     Basis _basis;
     ConjugateSpace _conjugateSpace;
 
+    std::vector<Eigen::Triplet<double>> _triplets;
+
     Eigen::MatrixXd _mat;
     Eigen::SparseMatrix<double> _truncMat;
     Eigen::VectorXd _rhs;
+    Eigen::VectorXd _exact;
 };
 
 }
