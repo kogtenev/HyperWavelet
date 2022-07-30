@@ -60,11 +60,7 @@ ColocationsMethod::ColocationsMethod(int numLevels, double a, double b):
     cout << "Dimension of linear system: " << _dim << endl << endl;
 }
 
-void ColocationsMethod::SetFredholmKernel(const function<double(double, double)>& K) {
-    _fredholmKernel.emplace(K);
-}
-
-void ColocationsMethod::FormFullMatrix() {
+void ColocationsMethod::FormFullMatrix(const function<double(double, double)>& K) {
     cout << "Forming dense system matrix" << endl;
 
     _mat.resize(_dim, _dim);
@@ -77,19 +73,17 @@ void ColocationsMethod::FormFullMatrix() {
             _mat(j, i) = c(0) * w[i].HyperSingularIntegral(p(0)) +
                          c(1) * w[i].HyperSingularIntegral(p(1)) +
                          c(2) * w[i].HyperSingularIntegral(p(2)) +
-                         c(3) * w[i].HyperSingularIntegral(p(3));    
+                         c(3) * w[i].HyperSingularIntegral(p(3)) +
+                         c(0) * w[i].FredholmIntegral(K, p(0)) +
+                         c(1) * w[i].FredholmIntegral(K, p(1)) +
+                         c(2) * w[i].FredholmIntegral(K, p(2)) +
+                         c(3) * w[i].FredholmIntegral(K, p(3));    
         }
     }
-    /*if (_fredholmKernel.has_value()) {
-       for (int j = 0; j < _dim; j++) {
-            for (int i = 0; i < _dim; i++) {
-            // TODO: Finish later
-            } 
-        }
-    }*/
 }
 
 void ColocationsMethod::FormTruncatedMatrix(
+        const function<double(double, double)>& K,
         double threshold, double reg, bool printMatrix) {
 
     cout << "Forming truncated system matrix" << endl;
@@ -111,7 +105,11 @@ void ColocationsMethod::FormTruncatedMatrix(
                 double value = c(0) * w[i].HyperSingularIntegral(p(0)) +
                                c(1) * w[i].HyperSingularIntegral(p(1)) +
                                c(2) * w[i].HyperSingularIntegral(p(2)) +
-                               c(3) * w[i].HyperSingularIntegral(p(3));
+                               c(3) * w[i].HyperSingularIntegral(p(3)) +
+                               c(0) * w[i].FredholmIntegral(K, p(0)) +
+                               c(1) * w[i].FredholmIntegral(K, p(1)) +
+                               c(2) * w[i].FredholmIntegral(K, p(2)) +
+                               c(3) * w[i].FredholmIntegral(K, p(3));
 
                 if (i == j) {
                     value += reg;
@@ -121,14 +119,6 @@ void ColocationsMethod::FormTruncatedMatrix(
             }
         }
     }
-
-    /*for (int j = 0; j < _dim; j++) {
-        for (int i = 0; i < _dim; i++) {
-            if (_fredholmKernel.has_value()) {
-
-            }
-        }
-    }*/
 
     _truncMat.setFromTriplets(_triplets.begin(), _triplets.end());
 

@@ -14,6 +14,11 @@ using namespace hyper_wavelet;
 
 function<double(double)> f = [](double x) {return sin(M_PI * x);};
 
+function<double(double, double)> K = [](double x, double y) {
+    //return x * x + y * y + sin(M_PI * x * y);
+    return 0.; 
+};
+
 int main(int argc, char* argv[]) {
     int numLevels = stoi(argv[1]);
     double a = stod(argv[2]);
@@ -24,7 +29,7 @@ int main(int argc, char* argv[]) {
     bool printTrunctated = static_cast<bool>(stoi(argv[7]));
 
     ColocationsMethod method(numLevels, a, b);
-    method.FormFullMatrix();
+    method.FormFullMatrix(K);
     method.FormRhs(f);
 
     const Eigen::MatrixXd& A = method.GetFullMatrix();
@@ -41,6 +46,8 @@ int main(int argc, char* argv[]) {
         cout << "Maximal singular value: " << sigma(0) << endl;
         cout << "Minimal singular value: " << sigma(dim - 1) << endl;
         cout << "Condition number: " << sigma(0) / sigma(dim - 1) << endl;
+
+        alpha = sqrt(sigma(dim - 1));
 
         cout << "\nAnilysing rhs in singular basis" << endl;
         const Eigen::VectorXd& rhsSingular = U.adjoint() * rhs;
@@ -64,7 +71,7 @@ int main(int argc, char* argv[]) {
     cout << "\nAnilyzing solution vector" << endl;
     PrintSparsityTable(x);
 
-    method.FormTruncatedMatrix(threshold, alpha, printTrunctated);
+    method.FormTruncatedMatrix(K, threshold, alpha, printTrunctated);
     const auto& sparseMatrix = method.GetTruncatedMatrix();
 
     cout << "Solving system with truncated matrix" << endl;

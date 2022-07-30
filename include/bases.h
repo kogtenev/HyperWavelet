@@ -19,8 +19,12 @@ public:
         _A(A), _B(B), _a(a), _b(b) {}
 
     double HyperSingularIntegral(double x0) const;
+    double FredholmIntegral(const std::function<double(double, double)>& K, double x0) const;
+
     double operator() (double x) const;
+
     void SetSupport(double a, double b) {_a = a; _b = b;}
+    void SetIntegralPointsNumber(int n) {_numOfIntPoints = n;}
     void Normalize(double a) {_A /= a; _B /= a;}
 
 private:
@@ -28,6 +32,8 @@ private:
     double _a, _b;
     // F(x) = Ax + B
     double _A, _B;
+
+    int _numOfIntPoints;
 };
 
 
@@ -40,8 +46,10 @@ public:
     ): _a(a), _b(b), _left(A, B, a, (a + b) / 2), _right(C, D, (a + b) / 2, b) {}
 
     double HyperSingularIntegral(double x0) const;
+    double FredholmIntegral(const std::function<double(double, double)>& K, double x0) const;
     double operator() (double x) const;
 
+    void SetIntegralPointsNumber(int n);
     void SetSupport(double a, double b);
     Interval GetSupport() const;
 
@@ -51,6 +59,7 @@ private:
     double _a, _b;
     LinearFunction _left;
     LinearFunction _right;
+    int _numOfIntPoints;
 };
 
 

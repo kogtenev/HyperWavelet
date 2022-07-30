@@ -23,7 +23,7 @@ private:
 };
 
 
-template<typename T>
+template <typename T>
 void PrintSparsityTable(const Eigen::MatrixBase<T>& matrix) {
     const auto size = matrix.rows() * matrix.cols();
     const double norm = matrix.template lpNorm<Eigen::Infinity>();
@@ -43,7 +43,7 @@ void PrintSparsityTable(const Eigen::MatrixBase<T>& matrix) {
         if (count == 0) {
             break;
         }
-        std::cout << tol << std::setw(15) << 1. * count / size << std::endl;
+        std::cout << tol << std::setw(15) << 1. - 1. * count / size << std::endl;
         tol /= 10.;
     }
     std::cout << std::endl;

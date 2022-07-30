@@ -42,6 +42,18 @@ double LinearFunction::HyperSingularIntegral(double x0) const {
             - _A * log(abs(_b - x0)) + _A * log(abs(_a - x0)); 
 }
 
+double LinearFunction::FredholmIntegral(
+    const std::function<double(double, double)>& K, double x0) const {
+
+    const double h = (_b - _a) / (_numOfIntPoints - 1);
+    double result = K(x0, _a) * h / 2;
+    for (int i = 1; i < _numOfIntPoints - 1; i++) {
+        result += K(x0, _a + i * h) * h;
+    }
+    result += K(x0, _b) * h / 2;
+    return result;
+}
+
 double LinearFunction::operator() (double x) const {
     if (_a <= x and x <= _b) {
         return _A * x + _B;
@@ -54,6 +66,12 @@ double PeacewiseLinearFunction::HyperSingularIntegral(double x0) const {
     return _left.HyperSingularIntegral(x0) + _right.HyperSingularIntegral(x0);
 }
 
+double PeacewiseLinearFunction::FredholmIntegral(
+    const std::function<double(double, double)>& K, double x0) const {
+
+    return _left.FredholmIntegral(K, x0) + _right.FredholmIntegral(K, x0);
+}
+
 // TODO: refactor
 double PeacewiseLinearFunction::operator() (double x) const {
     return _left(x) + _right(x);
@@ -64,6 +82,12 @@ void PeacewiseLinearFunction::SetSupport(double a, double b) {
     _b = b;
     _left.SetSupport(a, (a + b) / 2);
     _right.SetSupport((a + b) / 2, b);
+}
+
+void PeacewiseLinearFunction::SetIntegralPointsNumber(int n) {
+    _numOfIntPoints = n;
+    _left.SetIntegralPointsNumber(n / 2 + 1);
+    _right.SetIntegralPointsNumber(n / 2 + 1);
 }
 
 Interval PeacewiseLinearFunction::GetSupport() const {
@@ -96,6 +120,11 @@ Basis::Basis(double a, double b, int numLevels):
     _data[2].SetSupport(a, b);
     _data[3].SetSupport(a, b);
 
+    _data[0].SetIntegralPointsNumber(_dim + 1);
+    _data[1].SetIntegralPointsNumber(_dim + 1);
+    _data[2].SetIntegralPointsNumber(_dim + 1);
+    _data[3].SetIntegralPointsNumber(_dim + 1);
+
     double norm = sqrt(b - a);
     _data[0].Normalize(norm); 
     _data[1].Normalize(norm);
@@ -114,10 +143,12 @@ Basis::Basis(double a, double b, int numLevels):
         for (int i = 0; i < numOfSupports; i++) {
             _data[index] = W_1_0;
             _data[index].SetSupport(a + scale * i, a + scale * (i + 1));
+            _data[index].SetIntegralPointsNumber(_dim / numOfSupports + 1);
             _data[index].Normalize(norm);
             ++index;
             _data[index] = W_1_1;
             _data[index].SetSupport(a + scale * i, a + scale * (i + 1));
+            _data[index].SetIntegralPointsNumber(_dim / numOfSupports + 1);
             _data[index].Normalize(norm);
             ++index;
         }

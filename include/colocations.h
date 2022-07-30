@@ -28,10 +28,9 @@ class ColocationsMethod {
 public:
     ColocationsMethod(int numLevels, double a, double b);
 
-    void SetFredholmKernel(const std::function<double(double, double)>& K);
-
-    void FormFullMatrix();
+    void FormFullMatrix(const std::function<double(double, double)>& K);
     void FormTruncatedMatrix(
+        const std::function<double(double, double)>& K,
         double threshold, double reg = 0., bool printMatrix = true
     );
     void FormRhs(const std::function<double(double)>& f);
@@ -54,7 +53,7 @@ private:
     // borders of the interval
     const double _a, _b;
 
-    std::optional<std::function<double(double, double)>> _fredholmKernel;
+    std::function<double(double, double)> _K;
     
     Basis _basis;
     ConjugateSpace _conjugateSpace;
