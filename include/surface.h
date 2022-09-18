@@ -42,24 +42,27 @@ public:
     RectangleSurfaceSolver(
         int nx, int ny, double k,
         const std::function<Eigen::Vector3d(double, double)>& surfaceMap
-    ): _mesh(nx, ny, surfaceMap), _k(k), _dim(2*nx*ny), _smootherEpsilon(0.125 / nx / ny) {}
+    ): _mesh(nx, ny, surfaceMap), _k(k), _nx(nx), _dim(2*nx*ny), _smootherEpsilon(0.125 / nx / ny) {}
 
     void FormFullMatrix();
     void FormRhs(const std::function<Eigen::Vector3cd(const Eigen::Vector3d&)>& f);
 
+    void HaarTransform();
+
     const Eigen::MatrixXcd& GetFullMatrix() const {return _fullMatrix;}
     const Eigen::VectorXcd& GetRhs() const {return _rhs;}
 
-    void PlotSolutionMap(const Eigen::VectorXcd& x) const;
+    void PlotSolutionMap(Eigen::VectorXcd& x) const;
 
 private:
     const double _k;
     const int _dim;
+    const int _nx;
     const RectangleMesh _mesh;
     Eigen::MatrixXcd _fullMatrix;
     Eigen::VectorXcd _rhs;
 
-    int _integralPoints = 4;
+    int _integralPoints = 8;
     double _smootherEpsilon;
 
     double _Smooth(double r) const;

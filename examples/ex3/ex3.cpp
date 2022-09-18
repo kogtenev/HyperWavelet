@@ -4,14 +4,18 @@
 #include <complex>
 
 #include "surface.h"
+#include "helpers.h"
 
 using namespace std;
+using namespace hyper_wavelet;
 using namespace hyper_wavelet_2d;
+
+using hyper_wavelet::Profiler;
 
 function<Eigen::Vector3d(double, double)> surfaceMap = [](double x, double y) {
     Eigen::Vector3d result;
-    result[0] = 0.1 * x;
-    result[1] = 0.1 * y;
+    result[0] = 0.01 * x;
+    result[1] = 0.01 * y;
     result[2] = 0.;
     return result;
 };
@@ -55,19 +59,24 @@ int main(int argc, char* argv[]) {
     RectangleSurfaceSolver solver(nx, ny, k, surfaceMap);
     solver.FormFullMatrix();
     solver.FormRhs(f);
+    
+    cout << "Doing Haar transformation" << endl;
+    solver.HaarTransform();
 
-    cout << "Solving linear system" << endl;
     const Eigen::MatrixXcd A = solver.GetFullMatrix();
-    //ChecForNanAndInf(A);
     const Eigen::VectorXcd rhs = solver.GetRhs();
-    //cout << rhs << endl;
-    ///cout << A << endl;
-    const auto Lu = A.lu();
-    //cout << "Rank of the matrix: " << Lu.rank() << endl;
-    const Eigen::VectorXcd x = Lu.solve(rhs);
-    cout << "System is solved" << endl << endl;
+    //cout << A << endl;
 
-    cout << "Printing solution" << endl;
+    cout << "Analyzing matrix" << endl;
+    PrintSparsityTable(A);
+
+    Profiler profiler;
+    cout << "Solving linear system" << endl;
+    Eigen::VectorXcd x = A.lu().solve(rhs);
+    //cout << x << endl;
+    cout << "System is solved" << endl;
+    cout << "Time for solution: " << profiler.Toc() << endl << endl;
+
     solver.PlotSolutionMap(x);
     cout << "Done" << endl;
     

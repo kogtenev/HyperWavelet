@@ -54,23 +54,83 @@ void HaarInverse(Vector& x) {
 }
 
 template <typename Vector>
+class Row { 
+public:
+    Row(Vector data, size_t size, size_t row): data(data), _size(size), row(row) {}
+
+    auto operator[](size_t i) {
+        return data[row + i * _size];
+    } 
+
+    size_t size() {return _size;}
+
+    using Scalar = typename Vector::Scalar;
+
+public:
+    Vector data;
+    size_t _size;
+    size_t row;
+};
+
+template <typename Vector>
+class Col { 
+public:
+    Col(Vector data, size_t size, size_t col): data(data), _size(size), col(col) {}
+
+    auto operator[](size_t i) {
+        return data[_size * col + i];
+    }
+
+    size_t size() {return _size;}
+
+    using Scalar = typename Vector::Scalar;
+
+public:
+    Vector data;
+    size_t _size;
+    size_t col;
+};
+
+template <typename Vector>
 void Haar2D(Vector& x, size_t size) {
-    auto& mat = x.reshaped(size, size);
     for (size_t j = 0; j < size; j++) {
-        Haar(mat.col(j));
+        Col col(x, size, j);
+        Haar(col);
     }
     for (size_t i = 0; i < size; i++) {
-        Haar(mat.row(i));
+        Row row(x, size, i);
+        Haar(row);
     }
 }
 
 template <typename Vector>
 void HaarInverse2D(Vector& x, size_t size) {
-    auto& mat = x.reshaped(size, size);
-    for (size_t i = size - 1; i >= 0; i--) {
-        Haar(mat.row(i));
+    for (size_t i = 1; i <= size; i++) {
+        Row row(x, size, size - i);
+        HaarInverse(row);
     }
-    for (size_t j = size - 1; j >= 0; j--) {
-        Haar(mat.col(j));
+    for (size_t j = 1; j <= size; j++) {
+        Col col(x, size, size - j);
+        HaarInverse(col);
     }
 }
+
+template <typename Vector>
+class Subvector2D {
+public:
+    Subvector2D(Vector data, size_t size, int even): data(data), _size(size), even(even) {}
+
+    typename Vector::Scalar operator[](size_t i) {
+        return data[2 * i + even];
+    }
+
+    size_t size() {return _size;}
+
+    using Scalar = typename Vector::Scalar;
+
+public:  
+    Vector data;
+    size_t _size;
+    int even;
+};
+

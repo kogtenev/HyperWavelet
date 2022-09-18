@@ -3,8 +3,11 @@
 #include <fstream>
 
 #include "surface.h"
+#include "helpers.h"
+#include "Haar.h"
 
 using complex = std::complex<double>;
+using hyper_wavelet::Profiler;
 
 namespace hyper_wavelet_2d {
 
@@ -39,7 +42,7 @@ _MainKernelPart(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen:
     Eigen::Vector3cd AM = (x - a).cast<complex>();
     Eigen::Vector3cd BM = (x - b).cast<complex>();
 
-    return (AM / AM.norm() + BM / BM.norm()) / (AM.norm() * BM.norm() + AM.dot(BM));
+    return (b - a).norm() * (AM / AM.norm() + BM / BM.norm()) / (AM.norm() * BM.norm() + AM.dot(BM));
 }
 
 Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, const Eigen::Vector3d& y, double k) {
@@ -83,6 +86,7 @@ Eigen::Matrix2cd RectangleSurfaceSolver::_LocalMatrix(const Rectangle& X, const 
 void RectangleSurfaceSolver::FormFullMatrix() {
     std::cout << "Forming full matrix" << std::endl;
     std::cout << "Matrix size: " << _dim << " x " << _dim << std::endl;
+    Profiler profiler;
     _fullMatrix.resize(_dim, _dim);
     const auto& rectangles = _mesh.Data();
     const int n = rectangles.size();
@@ -91,7 +95,8 @@ void RectangleSurfaceSolver::FormFullMatrix() {
             _fullMatrix.block<2, 2>(2*i, 2*j) = _LocalMatrix(rectangles[j], rectangles[i]);
         }
     }
-    std::cout << "Matrix is formed" << std::endl << std::endl;
+    std::cout << "Matrix is formed" << std::endl;
+    std::cout << "Time for forming matrix: " << profiler.Toc() << " s." << std::endl << std::endl; 
 }
 
 void RectangleSurfaceSolver::
@@ -109,12 +114,39 @@ FormRhs(const std::function<Eigen::Vector3cd(const Eigen::Vector3d&)>& f) {
     }
 }
 
-void RectangleSurfaceSolver::PlotSolutionMap(const Eigen::VectorXcd& x) const {
+void RectangleSurfaceSolver::PlotSolutionMap(Eigen::VectorXcd& x) const {
+    std::cout << "Applying inverse Haar transfrom\n";
+    Subvector2D E0(x, _nx, 0);
+    HaarInverse2D(E0, _nx);
+    Subvector2D E1(x, _nx, 1);
+    HaarInverse2D(E1, _nx);
+    std::cout << "Printing solution\n";
     std::ofstream fout("solution.txt", std::ios::out);
     for (int i = 0; i < _dim; i++) {
         fout << std::abs(x(i)) << '\n';
     }
     fout.close();
+}
+
+void RectangleSurfaceSolver::HaarTransform() {
+    for (int i = 0; i < _dim; i++) {
+        auto col = _fullMatrix.col(i);
+        Subvector2D E0(col, _dim / 2, 0);
+        Haar2D(E0, _nx);
+        Subvector2D E1(col, _dim / 2, 1);
+        Haar2D(E1, _nx);
+    }
+    for (int i = 0; i < _dim; i++) {
+        auto row = _fullMatrix.row(i);
+        Subvector2D E0(row, _dim / 2, 0);
+        Haar2D(E0, _nx);
+        Subvector2D E1(row, _dim / 2, 1);
+        Haar2D(E1, _nx);
+    }
+    Subvector2D f0(_rhs, _dim / 2, 0);
+    Haar2D(f0, _nx);
+    Subvector2D f1(_rhs, _dim / 2, 1);
+    Haar2D(f1, _nx);   
 }
 
 }
