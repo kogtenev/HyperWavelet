@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
 
 namespace hyper_wavelet_2d {
 
@@ -31,11 +32,18 @@ public:
         int nx, int ny, 
         const std::function<Eigen::Vector3d(double, double)>& surfaceMap);
 
+    void HaarTransform();
+
     const std::vector<Rectangle>& Data() const {return _data;};
 
 private:
+    const std::function<Eigen::Vector3d(double, double)> surfaceMap;
     std::vector<Rectangle> _data;
-};  
+    int _nx;
+    int _ny;
+}; 
+
+
 
 class RectangleSurfaceSolver {
 public:
@@ -45,21 +53,27 @@ public:
     ): _mesh(nx, ny, surfaceMap), _k(k), _nx(nx), _dim(2*nx*ny), _smootherEpsilon(0.125 / nx / ny) {}
 
     void FormFullMatrix();
+    void FormTruncatedMatrix(double threshold, bool print = true);
     void FormRhs(const std::function<Eigen::Vector3cd(const Eigen::Vector3d&)>& f);
 
     void HaarTransform();
 
     const Eigen::MatrixXcd& GetFullMatrix() const {return _fullMatrix;}
+
+    const Eigen::SparseMatrix<std::complex<double>>& GetTruncatedMatrix() const {return _truncMatrix;};
+
     const Eigen::VectorXcd& GetRhs() const {return _rhs;}
 
     void PlotSolutionMap(Eigen::VectorXcd& x) const;
+    void PrintFullMatrix(const std::string& file) const;
 
 private:
     const double _k;
     const int _dim;
     const int _nx;
-    const RectangleMesh _mesh;
+    RectangleMesh _mesh;
     Eigen::MatrixXcd _fullMatrix;
+    Eigen::SparseMatrix<std::complex<double>> _truncMatrix;
     Eigen::VectorXcd _rhs;
 
     int _integralPoints = 8;
@@ -71,5 +85,7 @@ private:
     Eigen::Matrix2cd _LocalMatrix(const Rectangle& X, const Rectangle& X0);
     Eigen::Matrix2cd _RegularPart(const Rectangle& X, const Rectangle& X0);
 };
+
+double PlaneParRectDist(const Rectangle& A, const Rectangle& B);
 
 }

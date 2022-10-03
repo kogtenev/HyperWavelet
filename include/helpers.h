@@ -49,24 +49,5 @@ void PrintSparsityTable(const Eigen::MatrixBase<T>& matrix) {
     std::cout << std::endl;
 }
 
-template <typename Vector>
-class SubVector {
-private:
-    Vector* data;
-    size_t dim;
-    int start;
-    int inc;
-
-public:
-    SubVector(Vector& x, int start, int inc): 
-        data(&x), start(start), inc(inc), dim(x.size() / inc) {} 
-
-    size_t size() const {return dim;}
-
-    typename Vector::Scalar& operator[](size_t i) { 
-        return data->operator[](start + i * inc); 
-    }
-
-};
 
 }

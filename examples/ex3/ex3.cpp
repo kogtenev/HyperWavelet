@@ -47,9 +47,10 @@ void ChecForNanAndInf(const Eigen::MatrixXcd& A) {
 }
 
 int main(int argc, char* argv[]) {
-    double k = stod(argv[1]);
-    int nx = stoi(argv[2]);
-    int ny = stoi(argv[3]);
+    const double k = stod(argv[1]);
+    const int nx = stoi(argv[2]);
+    const int ny = stoi(argv[3]);
+    const double threshold = stod(argv[4]);
 
     cout << "Colocation method for scattering problem on unit rectangle" << endl;
     cout << "k = "  << k << endl;
@@ -60,12 +61,13 @@ int main(int argc, char* argv[]) {
     solver.FormFullMatrix();
     solver.FormRhs(f);
     
-    cout << "Doing Haar transformation" << endl;
+    cout << "Applying Haar transformation" << endl;
     solver.HaarTransform();
+    solver.PrintFullMatrix("mat.txt");
 
-    const Eigen::MatrixXcd A = solver.GetFullMatrix();
-    const Eigen::VectorXcd rhs = solver.GetRhs();
-    //cout << A << endl;
+    const Eigen::MatrixXcd& A = solver.GetFullMatrix();
+    const Eigen::VectorXcd& rhs = solver.GetRhs();
+    const double normA = A.lpNorm<Eigen::Infinity>();
 
     cout << "Analyzing matrix" << endl;
     PrintSparsityTable(A);
@@ -73,11 +75,24 @@ int main(int argc, char* argv[]) {
     Profiler profiler;
     cout << "Solving linear system" << endl;
     Eigen::VectorXcd x = A.lu().solve(rhs);
-    //cout << x << endl;
     cout << "System is solved" << endl;
     cout << "Time for solution: " << profiler.Toc() << endl << endl;
 
-    solver.PlotSolutionMap(x);
+    solver.FormTruncatedMatrix(threshold);
+    const auto& truncA = solver.GetTruncatedMatrix();
+    Eigen::MatrixXcd& dA = const_cast<Eigen::MatrixXcd&>(A);
+    dA -= truncA;
+    const double errNorm = dA.lpNorm<Eigen::Infinity>();
+    cout << "Relative error for matrices: " << errNorm / normA << endl << endl; 
+
+    cout << "Solving truncated system" << endl;
+    profiler.Tic();
+    Eigen::SparseLU<Eigen::SparseMatrix<complex<double>>> lu(truncA);
+    Eigen::VectorXcd _x = lu.solve(rhs);
+    cout << "Time for solution: " << profiler.Toc() << " s." << endl;
+    cout << "Relative error: " << (_x - x).norm() / x.norm() << endl << endl;
+
+    solver.PlotSolutionMap(_x);
     cout << "Done" << endl;
     
     return 0;

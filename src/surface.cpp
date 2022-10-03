@@ -5,14 +5,18 @@
 #include "surface.h"
 #include "helpers.h"
 #include "Haar.h"
+#include "bases.h"
 
 using complex = std::complex<double>;
 using hyper_wavelet::Profiler;
+using hyper_wavelet::Interval;
+using hyper_wavelet::Distance;
 
 namespace hyper_wavelet_2d {
 
 RectangleMesh::RectangleMesh(int nx, int ny, 
-    const std::function<Eigen::Vector3d(double, double)>& surfaceMap) {
+    const std::function<Eigen::Vector3d(double, double)>& surfaceMap): 
+                                    _nx(nx), _ny(ny), surfaceMap(surfaceMap) {
 
     double hx = 1. / nx, hy = 1. / ny;
     _data.resize(nx * ny);
@@ -25,6 +29,54 @@ RectangleMesh::RectangleMesh(int nx, int ny,
             _data[nx * j + i] = Rectangle(a, b, c, d);
         }
     }
+}
+
+void RectangleMesh::HaarTransform() {
+    std::cout << "Preparing mesh for Haar basis\n";
+
+    Profiler profiler;
+
+    Eigen::Vector3d a = surfaceMap(0., 0.);
+    Eigen::Vector3d b = surfaceMap(1., 0.);
+    Eigen::Vector3d c = surfaceMap(1., 1.);
+    Eigen::Vector3d d = surfaceMap(0., 1.);
+
+    const Rectangle unitRectangle(a, b, c, d);
+
+    _data[0] = unitRectangle;
+    _data[1] = unitRectangle;
+    _data[2] = unitRectangle;
+    _data[3] = unitRectangle;
+
+    double h = 0.5;
+    int level = 2;
+    int cnt = 4;
+
+    while (level < _nx) {
+        for (int j = 0; j < level; j++) {
+            for (int i = 0; i < level; i++) {
+                a = surfaceMap(i * h, j * h);
+                b = surfaceMap((i + 1) * h, j * h);
+                c = surfaceMap((i + 1) * h, (j + 1) * h);
+                d = surfaceMap(i * h, (j + 1) * h);
+
+                _data[cnt] = Rectangle(a, b, c, d);
+                cnt++;
+                _data[cnt] = Rectangle(a, b, c, d);
+                cnt++;
+                _data[cnt] = Rectangle(a, b, c, d);
+                cnt++;
+            }
+        }
+        h /= 2;
+        level *= 2;
+    }
+
+    if (cnt != (_nx * _nx)) {
+        throw std::runtime_error("Unknown error!");
+    }
+
+    std::cout << "Time for preparation: " << profiler.Toc() << " s.\n\n";
 }
 
 double RectangleSurfaceSolver::_Smooth(double r) const {
@@ -42,7 +94,7 @@ _MainKernelPart(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen:
     Eigen::Vector3cd AM = (x - a).cast<complex>();
     Eigen::Vector3cd BM = (x - b).cast<complex>();
 
-    return (b - a).norm() * (AM / AM.norm() + BM / BM.norm()) / (AM.norm() * BM.norm() + AM.dot(BM));
+    return (AM / AM.norm() + BM / BM.norm()) / (AM.norm() * BM.norm() + AM.dot(BM));
 }
 
 Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, const Eigen::Vector3d& y, double k) {
@@ -99,6 +151,42 @@ void RectangleSurfaceSolver::FormFullMatrix() {
     std::cout << "Time for forming matrix: " << profiler.Toc() << " s." << std::endl << std::endl; 
 }
 
+void RectangleSurfaceSolver::FormTruncatedMatrix(double threshold, bool print) {
+    _mesh.HaarTransform();
+    std::cout << "Forming truncated matrix\n";
+    threshold *= 10;
+    Profiler profiler;
+    const auto& rectangles = _mesh.Data();
+    const int n = rectangles.size();
+    std::vector<Eigen::Triplet<complex>> triplets;
+    _truncMatrix.resize(_dim, _dim);
+    _truncMatrix.makeCompressed();
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (PlaneParRectDist(rectangles[j], rectangles[i]) < threshold) {
+                triplets.push_back({2*i, 2*j, _fullMatrix(2*i, 2*j)});
+                triplets.push_back({2*i+1, 2*j, _fullMatrix(2*i+1, 2*j)});
+                triplets.push_back({2*i, 2*j+1, _fullMatrix(2*i, 2*j+1)});
+                triplets.push_back({2*i+1, 2*j+1, _fullMatrix(2*i+1, 2*j+1)});
+            }
+        }
+    }
+    _truncMatrix.setFromTriplets(triplets.begin(), triplets.end());
+    std::cout << "Time for forming truncated matrix: " << profiler.Toc() << " s.\n"; 
+    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / _fullMatrix.size() << "\n";
+
+    if (print) {
+        std::ofstream fout("trunc_mat.txt", std::ios::out);
+        std::cout << "Printing truncated matrix" << '\n';
+        for (const auto& triplet: triplets) {
+            fout << triplet.col() << ' ' << triplet.row()
+                 << ' ' << std::abs(triplet.value()) << '\n';
+        }
+        fout.close();    
+    }
+    std::cout << '\n';
+}
+
 void RectangleSurfaceSolver::
 FormRhs(const std::function<Eigen::Vector3cd(const Eigen::Vector3d&)>& f) {
     _rhs.resize(_dim);
@@ -147,6 +235,26 @@ void RectangleSurfaceSolver::HaarTransform() {
     Haar2D(f0, _nx);
     Subvector2D f1(_rhs, _dim / 2, 1);
     Haar2D(f1, _nx);   
+}
+
+void RectangleSurfaceSolver::PrintFullMatrix(const std::string& file) const {
+    std::ofstream fout(file, std::ios::out);
+    for (int i = 0; i < _dim; i++) {
+        for (int j = 0; j < _dim; j++) {
+            fout << std::abs(_fullMatrix(i, j)) << ' ';
+        }
+        fout << '\n';
+    }
+}
+
+double PlaneParRectDist(const Rectangle& A, const Rectangle& B) {
+    Interval A1 = {A.a[0], A.b[0]};
+    Interval B1 = {B.a[0], B.b[0]};
+    Interval A2 = {A.b[1], A.c[1]};
+    Interval B2 = {B.b[1], B.c[1]};
+    const double dx = Distance(A1, B1);
+    const double dy = Distance(A2, B2);
+    return std::sqrt(dx*dx + dy*dy);
 }
 
 }

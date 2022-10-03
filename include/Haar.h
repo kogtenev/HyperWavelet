@@ -56,9 +56,9 @@ void HaarInverse(Vector& x) {
 template <typename Vector>
 class Row { 
 public:
-    Row(Vector data, size_t size, size_t row): data(data), _size(size), row(row) {}
+    Row(Vector &data, size_t size, size_t row): data(data), _size(size), row(row) {}
 
-    auto operator[](size_t i) {
+    auto& operator[](size_t i) {
         return data[row + i * _size];
     } 
 
@@ -67,7 +67,7 @@ public:
     using Scalar = typename Vector::Scalar;
 
 public:
-    Vector data;
+    Vector& data;
     size_t _size;
     size_t row;
 };
@@ -75,9 +75,9 @@ public:
 template <typename Vector>
 class Col { 
 public:
-    Col(Vector data, size_t size, size_t col): data(data), _size(size), col(col) {}
+    Col(Vector& data, size_t size, size_t col): data(data), _size(size), col(col) {}
 
-    auto operator[](size_t i) {
+    auto& operator[](size_t i) {
         return data[_size * col + i];
     }
 
@@ -86,7 +86,7 @@ public:
     using Scalar = typename Vector::Scalar;
 
 public:
-    Vector data;
+    Vector& data;
     size_t _size;
     size_t col;
 };
@@ -118,9 +118,9 @@ void HaarInverse2D(Vector& x, size_t size) {
 template <typename Vector>
 class Subvector2D {
 public:
-    Subvector2D(Vector data, size_t size, int even): data(data), _size(size), even(even) {}
+    Subvector2D(Vector& data, size_t size, int even): data(data), _size(size), even(even) {}
 
-    typename Vector::Scalar operator[](size_t i) {
+    typename Vector::Scalar& operator[](size_t i) {
         return data[2 * i + even];
     }
 
@@ -129,7 +129,7 @@ public:
     using Scalar = typename Vector::Scalar;
 
 public:  
-    Vector data;
+    Vector& data;
     size_t _size;
     int even;
 };
