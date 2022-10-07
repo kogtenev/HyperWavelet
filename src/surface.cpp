@@ -31,51 +31,54 @@ RectangleMesh::RectangleMesh(int nx, int ny,
     }
 }
 
+void PrepareSupports1D(std::vector<Interval>& intervals, int n) {
+    intervals.resize(n);
+    intervals[0] = {0., 1};
+    intervals[1] = {0., 1};
+
+    int numOfSupports = 2;
+    double h = 0.5;
+    int cnt = 2;
+
+    while (numOfSupports < n) {
+        for (int i = 0; i < numOfSupports; i++) {
+            intervals[cnt] = {i * h, (i + 1) * h};
+            cnt++; 
+        }
+        h /= 2;
+        numOfSupports *= 2;
+    }
+
+    if (cnt != n) {
+       throw std::runtime_error("Cannot prepare 1D Haar supports!");
+    }
+}
+
 void RectangleMesh::HaarTransform() {
     std::cout << "Preparing mesh for Haar basis\n";
 
     Profiler profiler;
 
-    Eigen::Vector3d a = surfaceMap(0., 0.);
-    Eigen::Vector3d b = surfaceMap(1., 0.);
-    Eigen::Vector3d c = surfaceMap(1., 1.);
-    Eigen::Vector3d d = surfaceMap(0., 1.);
+    std::vector<Interval> supports_x, supports_y;
+    PrepareSupports1D(supports_x, _nx);
+    PrepareSupports1D(supports_y, _ny);
 
-    const Rectangle unitRectangle(a, b, c, d);
+    for (int j = 0; j < _ny; j++) {
+        for (int i = 0; i < _nx; i++) {
+            const double a_x = supports_x[i].a;
+            const double b_x = supports_x[i].b;
+            const double a_y = supports_y[j].a;
+            const double b_y = supports_y[j].b;
 
-    _data[0] = unitRectangle;
-    _data[1] = unitRectangle;
-    _data[2] = unitRectangle;
-    _data[3] = unitRectangle;
+            Eigen::Vector3d r1 = surfaceMap(a_x, a_y);
+            Eigen::Vector3d r2 = surfaceMap(b_x, a_y);
+            Eigen::Vector3d r3 = surfaceMap(b_x, b_y);
+            Eigen::Vector3d r4 = surfaceMap(a_x, b_y);
 
-    double h = 0.5;
-    int level = 2;
-    int cnt = 4;
-
-    while (level < _nx) {
-        for (int j = 0; j < level; j++) {
-            for (int i = 0; i < level; i++) {
-                a = surfaceMap(i * h, j * h);
-                b = surfaceMap((i + 1) * h, j * h);
-                c = surfaceMap((i + 1) * h, (j + 1) * h);
-                d = surfaceMap(i * h, (j + 1) * h);
-
-                _data[cnt] = Rectangle(a, b, c, d);
-                cnt++;
-                _data[cnt] = Rectangle(a, b, c, d);
-                cnt++;
-                _data[cnt] = Rectangle(a, b, c, d);
-                cnt++;
-            }
+            _data[_nx * j + i] = Rectangle(r1, r2, r3, r4);
         }
-        h /= 2;
-        level *= 2;
     }
-
-    if (cnt != (_nx * _nx)) {
-        throw std::runtime_error("Unknown error!");
-    }
-
+        
     std::cout << "Time for preparation: " << profiler.Toc() << " s.\n\n";
 }
 
