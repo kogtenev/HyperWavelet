@@ -97,7 +97,7 @@ _MainKernelPart(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen:
     Eigen::Vector3cd AM = (x - a).cast<complex>();
     Eigen::Vector3cd BM = (x - b).cast<complex>();
 
-    return (AM / AM.norm() + BM / BM.norm()) / (AM.norm() * BM.norm() + AM.dot(BM));
+    return (AM / AM.norm() + BM / BM.norm()) * (b - a).norm() / (AM.norm() * BM.norm() + AM.dot(BM));
 }
 
 Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, const Eigen::Vector3d& y, double k) {
@@ -196,12 +196,8 @@ FormRhs(const std::function<Eigen::Vector3cd(const Eigen::Vector3d&)>& f) {
     const auto& rectangles = _mesh.Data();
     for (int i = 0; i < rectangles.size(); i++) {
         const Eigen::Vector3cd b = f(rectangles[i].center);
-        //std::cout << rectangles[i].center << std::endl;
-        //std::cout << b << std::endl;
-        //_rhs(2 * i    ) = b.dot(rectangles[i].e1.cast<complex>());
-        //_rhs(2 * i + 1) = b.dot(rectangles[i].e2.cast<complex>());
-        _rhs(2 * i    ) = {1., 0.};
-        _rhs(2 * i + 1) = {0., 0.}; 
+        _rhs(2 * i    ) = b.dot(rectangles[i].e1.cast<complex>());
+        _rhs(2 * i + 1) = b.dot(rectangles[i].e2.cast<complex>());
     }
 }
 

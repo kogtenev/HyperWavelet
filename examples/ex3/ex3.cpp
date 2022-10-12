@@ -20,18 +20,28 @@ function<Eigen::Vector3d(double, double)> surfaceMap = [](double x, double y) {
     return result;
 };
 
-function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [](const Eigen::Vector3d& r) {
+const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [](const Eigen::Vector3d& r) {
     const complex<double> zero = {0., 0.};
     const complex<double> one = {1., 0.};
     const complex<double> i = {0., 1.};
+
     Eigen::Vector3cd k;
     Eigen::Vector3cd E0;
-    k << zero, zero, one;
-    E0 << zero, one, zero;
-    return exp(i * k.dot(r)) * E0; 
+
+    k[0] = zero;
+    k[1] = zero;
+    k[2] = one;
+
+    E0[0] = zero;
+    E0[1] = one;
+    E0[2] = zero;
+
+    E0 *= exp(i * k.dot(r.cast<complex<double>>()));
+
+    return E0; 
 };
 
-void ChecForNanAndInf(const Eigen::MatrixXcd& A) {
+void CheckForNanAndInf(const Eigen::MatrixXcd& A) {
     cout << "Checking system matrix\n";
     for (int i = 0; i < A.rows(); i++) {
         for (int j = 0; j < A.cols(); j++) {
