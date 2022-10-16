@@ -196,8 +196,11 @@ FormRhs(const std::function<Eigen::Vector3cd(const Eigen::Vector3d&)>& f) {
     const auto& rectangles = _mesh.Data();
     for (int i = 0; i < rectangles.size(); i++) {
         const Eigen::Vector3cd b = f(rectangles[i].center);
-        _rhs(2 * i    ) = b.dot(rectangles[i].e1.cast<complex>());
-        _rhs(2 * i + 1) = b.dot(rectangles[i].e2.cast<complex>());
+        const auto& e1 = rectangles[i].e1.cast<complex>();
+        const auto& e2 = rectangles[i].e2.cast<complex>();
+        const auto& n =  rectangles[i].normal.cast<complex>();
+        _rhs(2 * i    ) = -n.cross(b).dot(e1);
+        _rhs(2 * i + 1) = -n.cross(b).dot(e2);
     }
 }
 
