@@ -127,14 +127,35 @@ _RegularKernelPart(const Eigen::Vector3d& J, const Rectangle& X, const Eigen::Ve
 
 Eigen::Matrix2cd RectangleSurfaceSolver::_LocalMatrix(const Rectangle& X, const Rectangle& X0) {
     Eigen::Matrix2cd a;
-    Eigen::Vector3cd Ke1 = _MainKernelPart(X.d, X.a, X0.center) - _MainKernelPart(X.b, X.c, X0.center);
-    Eigen::Vector3cd Ke2 = _MainKernelPart(X.a, X.b, X0.center) - _MainKernelPart(X.c, X.d, X0.center);
+
+    const Eigen::Vector3cd I_ab = _MainKernelPart(X.a, X.b, X0.center);
+    const Eigen::Vector3cd I_bc = _MainKernelPart(X.b, X.c, X0.center);
+    const Eigen::Vector3cd I_cd = _MainKernelPart(X.c, X.d, X0.center);
+    const Eigen::Vector3cd I_da = _MainKernelPart(X.d, X.a, X0.center);
+
+    Eigen::Vector3d t_ab = (X.b - X.a); t_ab /= t_ab.norm(); 
+    Eigen::Vector3d t_bc = (X.c - X.b); t_bc /= t_bc.norm();
+    Eigen::Vector3d t_cd = (X.d - X.c); t_cd /= t_cd.norm(); 
+    Eigen::Vector3d t_da = (X.a - X.d); t_da /= t_da.norm();    
+
+    Eigen::Vector3cd Ke1 = X.e1.cross(X.normal).dot(t_ab) * I_ab;
+    Ke1 += X.e1.cross(X.normal).dot(t_bc) * I_bc;
+    Ke1 += X.e1.cross(X.normal).dot(t_cd) * I_cd;
+    Ke1 += X.e1.cross(X.normal).dot(t_da) * I_da;
+
+    Eigen::Vector3cd Ke2 = X.e2.cross(X.normal).dot(t_ab) * I_ab;
+    Ke2 += X.e2.cross(X.normal).dot(t_bc) * I_bc;
+    Ke2 += X.e2.cross(X.normal).dot(t_cd) * I_cd;
+    Ke2 += X.e2.cross(X.normal).dot(t_da) * I_da;
+
     Ke1 += _RegularKernelPart(X.e1, X, X0.center);
     Ke2 += _RegularKernelPart(X.e2, X, X0.center);
+
     a(0, 0) = X0.normal.cast<complex>().cross(Ke1).dot(X0.e1.cast<complex>());
     a(1, 0) = X0.normal.cast<complex>().cross(Ke1).dot(X0.e2.cast<complex>());
     a(0, 1) = X0.normal.cast<complex>().cross(Ke2).dot(X0.e1.cast<complex>());
     a(1, 1) = X0.normal.cast<complex>().cross(Ke2).dot(X0.e2.cast<complex>());
+
     return a;
 }
 

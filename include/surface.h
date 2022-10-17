@@ -23,6 +23,7 @@ struct Rectangle {
         e1 /= e1.norm();
         e2 /= e2.norm();
         normal  = e1.cross(e2);
+        normal /= normal.norm();
     }
 };
 
