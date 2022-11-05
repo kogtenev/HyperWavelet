@@ -159,6 +159,27 @@ Eigen::Matrix2cd RectangleSurfaceSolver::_LocalMatrix(const Rectangle& X, const 
     return a;
 }
 
+void RectangleSurfaceSolver::_formBlockCol(Eigen::MatrixXcd& blockCol, int j) {
+    blockCol.resize(_dim, 2);
+    const auto& rectangles = _mesh.Data();
+    for (int i = 0; i < _dim; i += 2) {
+        blockCol.block<2, 2>(2*i, 0) = _LocalMatrix(rectangles[j], rectangles[i]);
+    }
+
+    auto V0 = blockCol.col(0);
+    auto V1 = blockCol.col(1);
+
+    Subvector2D V0_x(V0, _dim / 2, 0);
+    Subvector2D V0_y(V0, _dim / 2, 1);
+    Subvector2D V1_x(V0, _dim / 2, 0);
+    Subvector2D V1_y(V0, _dim / 2, 1);
+
+    Haar2D(V0_x, _nx);
+    Haar2D(V0_y, _nx);
+    Haar2D(V1_x, _nx);
+    Haar2D(V1_y, _nx);
+}
+
 void RectangleSurfaceSolver::FormFullMatrix() {
     std::cout << "Forming full matrix" << std::endl;
     std::cout << "Matrix size: " << _dim << " x " << _dim << std::endl;
@@ -178,7 +199,6 @@ void RectangleSurfaceSolver::FormFullMatrix() {
 void RectangleSurfaceSolver::FormTruncatedMatrix(double threshold, bool print) {
     _mesh.HaarTransform();
     std::cout << "Forming truncated matrix\n";
-    threshold *= 10;
     Profiler profiler;
     const auto& rectangles = _mesh.Data();
     const int n = rectangles.size();
@@ -209,6 +229,67 @@ void RectangleSurfaceSolver::FormTruncatedMatrix(double threshold, bool print) {
         fout.close();    
     }
     std::cout << '\n';
+}
+
+void MakeHaarMatrix1D(int n, Eigen::MatrixXd& H) {
+    H.resize(n, n);
+    H.fill(0.);
+    for (int i = 0; i < n; i++) {
+        H(i, i) = 1.;
+    }
+    for (int j = 0; j < n; j++) {
+        auto col = H.col(j);
+        Haar(col);
+    }
+}
+
+void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
+    _mesh.HaarTransform();
+    std::cout << "Forming truncated matrix\n";
+    Profiler profiler;
+
+    const auto& rectangles = _mesh.Data();
+    const int N = rectangles.size();
+    std::vector<Eigen::Triplet<complex>> triplets;
+
+    _truncMatrix.resize(_dim, _dim);
+    _truncMatrix.makeCompressed();
+
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            if (PlaneParRectDist(rectangles[j], rectangles[i]) < threshold) {
+                triplets.push_back({2*i, 2*j, 0.});
+                triplets.push_back({2*i+1, 2*j, 0.});
+                triplets.push_back({2*i, 2*j+1, 0.});
+                triplets.push_back({2*i+1, 2*j+1, 0.});
+            }
+        }
+    }
+
+    Eigen::MatrixXd haarX, haarY;
+    MakeHaarMatrix1D(_nx, haarX);
+    MakeHaarMatrix1D(_nx, haarY);
+
+    for (int k = 0; k < N; k++) {
+        Eigen::MatrixXcd blockB;
+        _formBlockCol(blockB, k);
+        for (size_t tr = 0; tr < triplets.size(); tr += 4) {
+            const int i = triplets[tr].row() / 2;
+            const int j = triplets[tr].col() / 2;
+            const double haar = haarX(j % _nx, k / _nx) * haarY(j / _nx, k / _nx);
+
+            complex& C_0_0 = const_cast<complex&>(triplets[tr].value());
+            complex& C_1_0 = const_cast<complex&>(triplets[tr+1].value());
+            complex& C_0_1 = const_cast<complex&>(triplets[tr+2].value());
+            complex& C_1_1 = const_cast<complex&>(triplets[tr+3].value());
+
+            auto B = blockB.block<2, 2>(i, 0);
+            C_0_0 += B(0, 0);
+            C_1_0 += B(1, 0);
+            C_0_1 += B(0, 1);
+            C_1_1 += B(1, 1);
+        }
+    }
 }
 
 void RectangleSurfaceSolver::
