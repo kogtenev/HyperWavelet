@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
     cout << "System is solved" << endl;
     cout << "Time for solution: " << profiler.Toc() << endl << endl;
 
-    solver.FormTruncatedMatrix(threshold);
+    solver.FormMatrixCompressed(threshold);
     const auto& truncA = solver.GetTruncatedMatrix();
     Eigen::MatrixXcd& dA = const_cast<Eigen::MatrixXcd&>(A);
     dA -= truncA;

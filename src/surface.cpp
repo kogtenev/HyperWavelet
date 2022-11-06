@@ -163,7 +163,7 @@ void RectangleSurfaceSolver::_formBlockCol(Eigen::MatrixXcd& blockCol, int j) {
     blockCol.resize(_dim, 2);
     const auto& rectangles = _mesh.Data();
     for (int i = 0; i < _dim; i += 2) {
-        blockCol.block<2, 2>(2*i, 0) = _LocalMatrix(rectangles[j], rectangles[i]);
+        blockCol.block<2, 2>(i, 0) = _LocalMatrix(rectangles[j], rectangles[i]);
     }
 
     auto V0 = blockCol.col(0);
@@ -258,10 +258,10 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             if (PlaneParRectDist(rectangles[j], rectangles[i]) < threshold) {
-                triplets.push_back({2*i, 2*j, 0.});
-                triplets.push_back({2*i+1, 2*j, 0.});
-                triplets.push_back({2*i, 2*j+1, 0.});
-                triplets.push_back({2*i+1, 2*j+1, 0.});
+                triplets.push_back({2*i, 2*j, complex(0.)});
+                triplets.push_back({2*i+1, 2*j, complex(0.)});
+                triplets.push_back({2*i, 2*j+1, complex(0.)});
+                triplets.push_back({2*i+1, 2*j+1, complex(0.)});
             }
         }
     }
@@ -276,7 +276,7 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
         for (size_t tr = 0; tr < triplets.size(); tr += 4) {
             const int i = triplets[tr].row() / 2;
             const int j = triplets[tr].col() / 2;
-            const double haar = haarX(j % _nx, k / _nx) * haarY(j / _nx, k / _nx);
+            const double haar = haarX(j % _nx, k % _nx) * haarY(j / _nx, k / _nx);
 
             complex& C_0_0 = const_cast<complex&>(triplets[tr].value());
             complex& C_1_0 = const_cast<complex&>(triplets[tr+1].value());
@@ -284,12 +284,29 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
             complex& C_1_1 = const_cast<complex&>(triplets[tr+3].value());
 
             auto B = blockB.block<2, 2>(i, 0);
+            B *= haar;
+
             C_0_0 += B(0, 0);
             C_1_0 += B(1, 0);
             C_0_1 += B(0, 1);
             C_1_1 += B(1, 1);
         }
     }
+
+    _truncMatrix.setFromTriplets(triplets.begin(), triplets.end());
+    std::cout << "Time for forming truncated matrix: " << profiler.Toc() << " s.\n"; 
+    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / _fullMatrix.size() << "\n";
+
+    if (print) {
+        std::ofstream fout("trunc_mat.txt", std::ios::out);
+        std::cout << "Printing truncated matrix" << '\n';
+        for (const auto& triplet: triplets) {
+            fout << triplet.col() << ' ' << triplet.row()
+                 << ' ' << std::abs(triplet.value()) << '\n';
+        }
+        fout.close();    
+    }
+    std::cout << '\n';
 }
 
 void RectangleSurfaceSolver::
