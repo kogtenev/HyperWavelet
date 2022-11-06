@@ -250,10 +250,10 @@ void MakeHaarMatrix2D(int n, Eigen::MatrixXcd& H) {
     for (int i = 0; i < d; i++) {
         H(i, i) = {1., 0.};
     }
-    for (int j = 0; j < d; j++) {
+    /*for (int j = 0; j < d; j++) {
         auto col = H.col(j);
         Haar2D(col, n);
-    }
+    }*/
 }
 
 void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
