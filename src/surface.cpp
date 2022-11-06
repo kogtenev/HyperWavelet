@@ -166,18 +166,18 @@ void RectangleSurfaceSolver::_formBlockCol(Eigen::MatrixXcd& blockCol, int j) {
         blockCol.block<2, 2>(2*i, 0) = _LocalMatrix(rectangles[j], rectangles[i]);
     }
 
-    /*auto V0 = blockCol.col(0);
+    auto V0 = blockCol.col(0);
     auto V1 = blockCol.col(1);
 
     Subvector2D V0_x(V0, _dim / 2, 0);
     Subvector2D V0_y(V0, _dim / 2, 1);
-    Subvector2D V1_x(V0, _dim / 2, 0);
-    Subvector2D V1_y(V0, _dim / 2, 1);*/
+    Subvector2D V1_x(V1, _dim / 2, 0);
+    Subvector2D V1_y(V1, _dim / 2, 1);
 
-    /*Haar2D(V0_x, _nx);
+    Haar2D(V0_x, _nx);
     Haar2D(V0_y, _nx);
     Haar2D(V1_x, _nx);
-    Haar2D(V1_y, _nx);*/
+    Haar2D(V1_y, _nx);
 }
 
 void RectangleSurfaceSolver::FormFullMatrix() {
@@ -237,10 +237,10 @@ void MakeHaarMatrix1D(int n, Eigen::MatrixXd& H) {
     for (int i = 0; i < n; i++) {
         H(i, i) = 1.;
     }
-    /*for (int j = 0; j < n; j++) {
+    for (int j = 0; j < n; j++) {
         auto col = H.col(j);
         Haar(col);
-    }*/
+    }
 }
 
 void MakeHaarMatrix2D(int n, Eigen::MatrixXcd& H) {
@@ -250,10 +250,10 @@ void MakeHaarMatrix2D(int n, Eigen::MatrixXcd& H) {
     for (int i = 0; i < d; i++) {
         H(i, i) = {1., 0.};
     }
-    /*for (int j = 0; j < d; j++) {
+    for (int j = 0; j < d; j++) {
         auto col = H.col(j);
         Haar2D(col, n);
-    }*/
+    }
 }
 
 void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) {

@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
     solver.FormRhs(f);
     
     cout << "Applying Haar transformation" << endl;
-    //solver.HaarTransform();
+    solver.HaarTransform();
     solver.PrintFullMatrix("mat.txt");
 
     const Eigen::MatrixXcd& A = solver.GetFullMatrix();
