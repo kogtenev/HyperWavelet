@@ -243,19 +243,6 @@ void MakeHaarMatrix1D(int n, Eigen::MatrixXd& H) {
     }
 }
 
-void MakeHaarMatrix2D(int n, Eigen::MatrixXcd& H) {
-    const int d = n * n;
-    H.resize(d, d);
-    H.fill(complex(0.));
-    for (int i = 0; i < d; i++) {
-        H(i, i) = {1., 0.};
-    }
-    for (int j = 0; j < d; j++) {
-        auto col = H.col(j);
-        Haar2D(col, n);
-    }
-}
-
 void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
     auto haarMesh = _mesh;
     haarMesh.HaarTransform();
@@ -282,19 +269,16 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
 
     Eigen::MatrixXd haarX, haarY;
     Eigen::MatrixXcd haar2D;
-    //MakeHaarMatrix1D(_nx, haarX);
-    //MakeHaarMatrix1D(_nx, haarY);
-    MakeHaarMatrix2D(_nx, haar2D);
+    MakeHaarMatrix1D(_nx, haarX);
+    MakeHaarMatrix1D(_nx, haarY);
 
     for (int k = 0; k < N; k++) {
         Eigen::MatrixXcd blockB;
         _formBlockCol(blockB, k);
-        //std::cout << blockB << "\n\n";
         for (size_t tr = 0; tr < triplets.size(); tr += 4) {
             const int i = triplets[tr].row() / 2;
             const int j = triplets[tr].col() / 2;
-            //const double haar = haarX(j % _nx, k % _nx) * haarY(j / _nx, k / _nx);
-            const complex haar = haar2D(j, k);
+            const double haar = haarX(j % _nx, k % _nx) * haarY(j / _nx, k / _nx);
 
             complex& C_0_0 = const_cast<complex&>(triplets[tr].value());
             complex& C_1_0 = const_cast<complex&>(triplets[tr+1].value());
@@ -302,8 +286,6 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
             complex& C_1_1 = const_cast<complex&>(triplets[tr+3].value());
 
             const auto B = blockB.block<2, 2>(2*i, 0);
-            //std::cout << B << "\n\n";
-            //B *= haar;
 
             C_0_0 += haar * B(0, 0);
             C_1_0 += haar * B(1, 0);
@@ -357,24 +339,28 @@ void RectangleSurfaceSolver::PlotSolutionMap(Eigen::VectorXcd& x) const {
 }
 
 void RectangleSurfaceSolver::HaarTransform() {
-    for (int i = 0; i < _dim; i++) {
-        auto col = _fullMatrix.col(i);
-        Subvector2D E0(col, _dim / 2, 0);
-        Haar2D(E0, _nx);
-        Subvector2D E1(col, _dim / 2, 1);
-        Haar2D(E1, _nx);
+    if (_fullMatrix.size()) {
+        for (int i = 0; i < _dim; i++) {
+            auto col = _fullMatrix.col(i);
+            Subvector2D E0(col, _dim / 2, 0);
+            Haar2D(E0, _nx);
+            Subvector2D E1(col, _dim / 2, 1);
+            Haar2D(E1, _nx);
+        }
+        for (int i = 0; i < _dim; i++) {
+            auto row = _fullMatrix.row(i);
+            Subvector2D E0(row, _dim / 2, 0);
+            Haar2D(E0, _nx);
+            Subvector2D E1(row, _dim / 2, 1);
+            Haar2D(E1, _nx);
+        }
     }
-    for (int i = 0; i < _dim; i++) {
-        auto row = _fullMatrix.row(i);
-        Subvector2D E0(row, _dim / 2, 0);
-        Haar2D(E0, _nx);
-        Subvector2D E1(row, _dim / 2, 1);
-        Haar2D(E1, _nx);
-    }
-    Subvector2D f0(_rhs, _dim / 2, 0);
-    Haar2D(f0, _nx);
-    Subvector2D f1(_rhs, _dim / 2, 1);
-    Haar2D(f1, _nx);   
+    if (_rhs.size()) {
+        Subvector2D f0(_rhs, _dim / 2, 0);
+        Haar2D(f0, _nx);
+        Subvector2D f1(_rhs, _dim / 2, 1);
+        Haar2D(f1, _nx);
+    }   
 }
 
 void RectangleSurfaceSolver::PrintFullMatrix(const std::string& file) const {

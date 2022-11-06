@@ -14,8 +14,8 @@ using hyper_wavelet::Profiler;
 
 function<Eigen::Vector3d(double, double)> surfaceMap = [](double x, double y) {
     Eigen::Vector3d result;
-    result[0] = 0.01 * x;
-    result[1] = 0.01 * y;
+    result[0] = x;
+    result[1] = y;
     result[2] = 0.;
     return result;
 };
