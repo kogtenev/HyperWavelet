@@ -81,15 +81,15 @@ private:
     int _integralPoints = 8;
     double _smootherEpsilon;
 
-    double _Smooth(double r) const;
+    inline double _Smooth(double r) const;
     void _printTruncMatrix();
     void _formBlockCol(Eigen::MatrixXcd& col, int j);
-    Eigen::Vector3cd _RegularKernelPart(const Eigen::Vector3d& j, const Rectangle& X, const Eigen::Vector3d& x0);
-    Eigen::Vector3cd _MainKernelPart(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& x);
-    Eigen::Matrix2cd _LocalMatrix(const Rectangle& X, const Rectangle& X0);
-    Eigen::Matrix2cd _RegularPart(const Rectangle& X, const Rectangle& X0);
+    inline Eigen::Vector3cd _RegularKernelPart(const Eigen::Vector3d& j, const Rectangle& X, const Eigen::Vector3d& x0);
+    inline Eigen::Vector3cd _MainKernelPart(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& x);
+    inline Eigen::Matrix2cd _LocalMatrix(const Rectangle& X, const Rectangle& X0);
+    inline Eigen::Matrix2cd _RegularPart(const Rectangle& X, const Rectangle& X0);
 };
 
-double PlaneParRectDist(const Rectangle& A, const Rectangle& B);
+inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B);
 
 }
