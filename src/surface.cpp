@@ -82,7 +82,7 @@ void RectangleMesh::HaarTransform() {
     std::cout << "Time for preparation: " << profiler.Toc() << " s.\n\n";
 }
 
-inline double RectangleSurfaceSolver::_Smooth(double r) const {
+double RectangleSurfaceSolver::_Smooth(double r) const {
     if (r < _smootherEpsilon) {
         return 3 * r * r * r / _smootherEpsilon / _smootherEpsilon / _smootherEpsilon
                  - 2 * r * r / _smootherEpsilon / _smootherEpsilon;
@@ -91,7 +91,7 @@ inline double RectangleSurfaceSolver::_Smooth(double r) const {
     }
 }
 
-inline Eigen::Vector3cd RectangleSurfaceSolver::
+Eigen::Vector3cd RectangleSurfaceSolver::
 _MainKernelPart(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& x) {
     
     Eigen::Vector3cd AM = (x - a).cast<complex>();
@@ -100,7 +100,7 @@ _MainKernelPart(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen:
     return (AM / AM.norm() + BM / BM.norm()) * (b - a).norm() / (AM.norm() * BM.norm() + AM.dot(BM));
 }
 
-inline Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, const Eigen::Vector3d& y, double k) {
+Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, const Eigen::Vector3d& y, double k) {
     const double R = (x - y).norm();
     const Eigen::Vector3d& r = (x - y) / R;
     std::complex<double> i = {0, 1};
@@ -109,7 +109,7 @@ inline Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, c
             k * k * std::exp(i*k*R) / R * (j.cast<complex>() - r.dot(j) * r.cast<complex>());
 }
 
-inline Eigen::Vector3cd RectangleSurfaceSolver::
+Eigen::Vector3cd RectangleSurfaceSolver::
 _RegularKernelPart(const Eigen::Vector3d& J, const Rectangle& X, const Eigen::Vector3d& x0) { 
     double hx = (X.b - X.a).norm() / _integralPoints;
     double hy = (X.c - X.b).norm() / _integralPoints;
@@ -125,7 +125,7 @@ _RegularKernelPart(const Eigen::Vector3d& J, const Rectangle& X, const Eigen::Ve
     return result;
 }
 
-inline Eigen::Matrix2cd RectangleSurfaceSolver::_LocalMatrix(const Rectangle& X, const Rectangle& X0) {
+Eigen::Matrix2cd RectangleSurfaceSolver::_LocalMatrix(const Rectangle& X, const Rectangle& X0) {
     Eigen::Matrix2cd a;
 
     const Eigen::Vector3cd I_ab = _MainKernelPart(X.a, X.b, X0.center);
@@ -297,7 +297,7 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
 
     _truncMatrix.setFromTriplets(triplets.begin(), triplets.end());
     std::cout << "Time for forming truncated matrix: " << profiler.Toc() << " s.\n"; 
-    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / _triplets.size() << "\n";
+    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / _dim / _dim << "\n";
 
     if (print) {
         std::ofstream fout("trunc_mat.txt", std::ios::out);
@@ -311,8 +311,7 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
     std::cout << '\n';
 }
 
-void RectangleSurfaceSolver::
-FormRhs(const std::function<Eigen::Vector3cd(const Eigen::Vector3d&)>& f) {
+void RectangleSurfaceSolver::FormRhs(const std::function<Eigen::Vector3cd(const Eigen::Vector3d&)>& f) {
     _rhs.resize(_dim);
     const auto& rectangles = _mesh.Data();
     for (int i = 0; i < rectangles.size(); i++) {
