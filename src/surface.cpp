@@ -272,6 +272,7 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
     MakeHaarMatrix1D(_nx, haarX);
     MakeHaarMatrix1D(_nx, haarY);
 
+    #pragma omp parallel for
     for (int k = 0; k < N; k++) {
         Eigen::MatrixXcd blockB;
         _formBlockCol(blockB, k);
@@ -296,7 +297,7 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
 
     _truncMatrix.setFromTriplets(triplets.begin(), triplets.end());
     std::cout << "Time for forming truncated matrix: " << profiler.Toc() << " s.\n"; 
-    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / _fullMatrix.size() << "\n";
+    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / _triplets.size() << "\n";
 
     if (print) {
         std::ofstream fout("trunc_mat.txt", std::ios::out);
