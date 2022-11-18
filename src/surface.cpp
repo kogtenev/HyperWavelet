@@ -151,10 +151,10 @@ Eigen::Matrix2cd RectangleSurfaceSolver::_LocalMatrix(const Rectangle& X, const 
     Ke1 += _RegularKernelPart(X.e1, X, X0.center);
     Ke2 += _RegularKernelPart(X.e2, X, X0.center);
 
-    a(0, 0) = X0.normal.cast<complex>().cross(Ke1).dot(X0.e1.cast<complex>());
-    a(1, 0) = X0.normal.cast<complex>().cross(Ke1).dot(X0.e2.cast<complex>());
-    a(0, 1) = X0.normal.cast<complex>().cross(Ke2).dot(X0.e1.cast<complex>());
-    a(1, 1) = X0.normal.cast<complex>().cross(Ke2).dot(X0.e2.cast<complex>());
+    a(0, 0) =  X0.normal.cast<complex>().cross(Ke1).dot(X0.e2.cast<complex>());
+    a(1, 0) = -X0.normal.cast<complex>().cross(Ke1).dot(X0.e1.cast<complex>());
+    a(0, 1) =  X0.normal.cast<complex>().cross(Ke2).dot(X0.e2.cast<complex>());
+    a(1, 1) = -X0.normal.cast<complex>().cross(Ke2).dot(X0.e1.cast<complex>());
 
     return a;
 }
@@ -272,7 +272,6 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
     MakeHaarMatrix1D(_nx, haarX);
     MakeHaarMatrix1D(_nx, haarY);
 
-    #pragma omp parallel for
     for (int k = 0; k < N; k++) {
         Eigen::MatrixXcd blockB;
         _formBlockCol(blockB, k);
@@ -319,8 +318,8 @@ void RectangleSurfaceSolver::FormRhs(const std::function<Eigen::Vector3cd(const 
         const auto& e1 = rectangles[i].e1.cast<complex>();
         const auto& e2 = rectangles[i].e2.cast<complex>();
         const auto& n =  rectangles[i].normal.cast<complex>();
-        _rhs(2 * i    ) = -n.cross(b).dot(e1);
-        _rhs(2 * i + 1) = -n.cross(b).dot(e2);
+        _rhs(2 * i    ) = -n.cross(b).dot(e2);
+        _rhs(2 * i + 1) =  n.cross(b).dot(e1);
     }
 }
 

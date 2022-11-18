@@ -79,6 +79,13 @@ int main(int argc, char* argv[]) {
     const Eigen::VectorXcd& rhs = solver.GetRhs();
     const double normA = A.lpNorm<Eigen::Infinity>();
 
+    const auto& eig = A.eigenvalues();
+    std::ofstream eigFile("eig.txt", ios::out);
+    for (int i = 0; i < eig.size(); i++) {
+        eigFile << eig[i].real() << ' ' << eig[i].imag() << '\n';
+    }
+    eigFile.close();
+
     cout << "Analyzing matrix" << endl;
     PrintSparsityTable(A);
 
