@@ -292,32 +292,34 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
         rowStarts.push_back(nnz);
     }
 
+    Eigen::SparseMatrix<double> haar1D;
+    MakeHaarMatrix1D(_nx, haar1D);
+    
+    for (int ky = 0; ky < _nx; ky++) {
+        for (int kx = 0; kx < _nx; kx++) {
+            const int k = _nx * ky + kx;
+            Eigen::MatrixXcd blockB;
+            _formBlockCol(blockB, k);
+            for (Eigen::SparseMatrix<double>::InnerIterator ity(haar1D,ky); ity; ++ity) {
+                for (Eigen::SparseMatrix<double>::InnerIterator itx(haar1D,kx); itx; ++itx) {
+                    const int j = _nx * ity.row() + itx.row(); 
+                    const double haar = ity.value() * itx.value();
+                    #pragma omp parallel for
+                    for (size_t tr = rowStarts[j]; tr < rowStarts[j+1]; tr += 4) {
+                        const int i = triplets[tr].row() / 2;
 
-    Eigen::MatrixXd haarX, haarY;
-    MakeHaarMatrix1D(_nx, haarX);
-    MakeHaarMatrix1D(_nx, haarY);
+                        complex& C_0_0 = const_cast<complex&>(triplets[tr].value());
+                        complex& C_1_0 = const_cast<complex&>(triplets[tr+1].value());
+                        complex& C_0_1 = const_cast<complex&>(triplets[tr+2].value());
+                        complex& C_1_1 = const_cast<complex&>(triplets[tr+3].value());
 
-    for (int k = 0; k < N; k++) {
-        Eigen::MatrixXcd blockB;
-        _formBlockCol(blockB, k);
-        size_t tr = 0;
-        for (int j = 0; j < N; j++) {
-            const double haar = haarX(j % _nx, k % _nx) * haarY(j / _nx, k / _nx);
-            if (haar != 0.) {
-                for (tr = rowStarts[j]; tr < rowStarts[j+1]; tr += 4) {
-                    const int i = triplets[tr].row() / 2;
+                        const auto B = blockB.block<2, 2>(2*i, 0);
 
-                    complex& C_0_0 = const_cast<complex&>(triplets[tr].value());
-                    complex& C_1_0 = const_cast<complex&>(triplets[tr+1].value());
-                    complex& C_0_1 = const_cast<complex&>(triplets[tr+2].value());
-                    complex& C_1_1 = const_cast<complex&>(triplets[tr+3].value());
-
-                    const auto B = blockB.block<2, 2>(2*i, 0);
-
-                    C_0_0 += haar * B(0, 0);
-                    C_1_0 += haar * B(1, 0);
-                    C_0_1 += haar * B(0, 1);
-                    C_1_1 += haar * B(1, 1);
+                        C_0_0 += haar * B(0, 0);
+                        C_1_0 += haar * B(1, 0);
+                        C_0_1 += haar * B(0, 1);
+                        C_1_1 += haar * B(1, 1);
+                    }
                 }
             }
         }
