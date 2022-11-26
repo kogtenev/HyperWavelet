@@ -82,13 +82,8 @@ void RectangleMesh::HaarTransform() {
     std::cout << "Time for preparation: " << profiler.Toc() << " s.\n\n";
 }
 
-double RectangleSurfaceSolver::_Smooth(double r) const {
-    if (r < _smootherEpsilon) {
-        return 3 * r * r * r / _smootherEpsilon / _smootherEpsilon / _smootherEpsilon
-                 - 2 * r * r / _smootherEpsilon / _smootherEpsilon;
-    } else {
-        return 1.;
-    }
+inline double RectangleSurfaceSolver::_Smooth(double r) const {
+    return r < _eps ? 3*r*r*r/_eps/_eps/_eps - 2*r*r/_eps/_eps : 1.;
 }
 
 Eigen::Vector3cd RectangleSurfaceSolver::
@@ -100,7 +95,7 @@ _MainKernelPart(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen:
     return (AM / AM.norm() + BM / BM.norm()) * (b - a).norm() / (AM.norm() * BM.norm() + AM.dot(BM));
 }
 
-Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, const Eigen::Vector3d& y, double k) {
+inline Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, const Eigen::Vector3d& y, double k) {
     const double R = (x - y).norm();
     const Eigen::Vector3d& r = (x - y) / R;
     std::complex<double> i = {0, 1};
@@ -243,6 +238,31 @@ void MakeHaarMatrix1D(int n, Eigen::MatrixXd& H) {
     }
 }
 
+void MakeHaarMatrix1D(int n, Eigen::SparseMatrix<double>& H) {
+    H.resize(n, n);
+    H.makeCompressed();
+    std::vector<Eigen::Triplet<double>> triplets;
+    double scale = std::sqrt(1./ n);
+    for (int i = 0; i < n; i++) {
+        triplets.push_back({0, i, scale});
+    }
+    int row = 1;
+    for (int nnz = n; nnz > 1; nnz /= 2) {
+        int nrows = n / nnz;
+        scale = std::sqrt(1./ nnz);
+        for (int i = 0; i < nrows; i++) {
+            for (int j = 0; j < nnz / 2; j++) {
+                triplets.push_back({row, i*nnz + j, scale});
+            }
+            for (int j = nnz / 2; j < nnz; j++) {
+                triplets.push_back({row, i*nnz + j, -scale});
+            }
+            row++;
+        }
+    }
+    H.setFromTriplets(triplets.begin(), triplets.end());
+}
+
 void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
     auto haarMesh = _mesh;
     haarMesh.HaarTransform();
@@ -255,42 +275,51 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
 
     _truncMatrix.resize(_dim, _dim);
     _truncMatrix.makeCompressed();
+    std::vector<size_t> rowStarts;
+    rowStarts.push_back(0);
 
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < N; j++) {
+    size_t nnz = 0;
+    for (int j = 0; j < N; j++) {
+        for (int i = 0; i < N; i++) {
             if (PlaneParRectDist(rectangles[j], rectangles[i]) < threshold) {
                 triplets.push_back({2*i, 2*j, complex(0.)});
                 triplets.push_back({2*i+1, 2*j, complex(0.)});
                 triplets.push_back({2*i, 2*j+1, complex(0.)});
                 triplets.push_back({2*i+1, 2*j+1, complex(0.)});
+                nnz += 4;
             }
         }
+        rowStarts.push_back(nnz);
     }
 
+
     Eigen::MatrixXd haarX, haarY;
-    Eigen::MatrixXcd haar2D;
     MakeHaarMatrix1D(_nx, haarX);
     MakeHaarMatrix1D(_nx, haarY);
 
     for (int k = 0; k < N; k++) {
         Eigen::MatrixXcd blockB;
         _formBlockCol(blockB, k);
-        for (size_t tr = 0; tr < triplets.size(); tr += 4) {
-            const int i = triplets[tr].row() / 2;
-            const int j = triplets[tr].col() / 2;
+        size_t tr = 0;
+        for (int j = 0; j < N; j++) {
             const double haar = haarX(j % _nx, k % _nx) * haarY(j / _nx, k / _nx);
+            if (haar != 0.) {
+                for (tr = rowStarts[j]; tr < rowStarts[j+1]; tr += 4) {
+                    const int i = triplets[tr].row() / 2;
 
-            complex& C_0_0 = const_cast<complex&>(triplets[tr].value());
-            complex& C_1_0 = const_cast<complex&>(triplets[tr+1].value());
-            complex& C_0_1 = const_cast<complex&>(triplets[tr+2].value());
-            complex& C_1_1 = const_cast<complex&>(triplets[tr+3].value());
+                    complex& C_0_0 = const_cast<complex&>(triplets[tr].value());
+                    complex& C_1_0 = const_cast<complex&>(triplets[tr+1].value());
+                    complex& C_0_1 = const_cast<complex&>(triplets[tr+2].value());
+                    complex& C_1_1 = const_cast<complex&>(triplets[tr+3].value());
 
-            const auto B = blockB.block<2, 2>(2*i, 0);
+                    const auto B = blockB.block<2, 2>(2*i, 0);
 
-            C_0_0 += haar * B(0, 0);
-            C_1_0 += haar * B(1, 0);
-            C_0_1 += haar * B(0, 1);
-            C_1_1 += haar * B(1, 1);
+                    C_0_0 += haar * B(0, 0);
+                    C_1_0 += haar * B(1, 0);
+                    C_0_1 += haar * B(0, 1);
+                    C_1_1 += haar * B(1, 1);
+                }
+            }
         }
     }
 
@@ -372,13 +401,9 @@ void RectangleSurfaceSolver::PrintFullMatrix(const std::string& file) const {
     }
 }
 
-double PlaneParRectDist(const Rectangle& A, const Rectangle& B) {
-    Interval A1 = {A.a[0], A.b[0]};
-    Interval B1 = {B.a[0], B.b[0]};
-    Interval A2 = {A.b[1], A.c[1]};
-    Interval B2 = {B.b[1], B.c[1]};
-    const double dx = Distance(A1, B1);
-    const double dy = Distance(A2, B2);
+inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B) {
+    const double dx = Distance({A.a[0], A.b[0]}, {B.a[0], B.b[0]});
+    const double dy = Distance({A.b[1], A.c[1]}, {B.b[1], B.c[1]});
     return std::sqrt(dx*dx + dy*dy);
 }
 

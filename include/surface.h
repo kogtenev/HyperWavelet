@@ -50,7 +50,7 @@ public:
     RectangleSurfaceSolver(
         int nx, int ny, double k,
         const std::function<Eigen::Vector3d(double, double)>& surfaceMap
-    ): _mesh(nx, ny, surfaceMap), _k(k), _nx(nx), _dim(2*nx*ny), _smootherEpsilon(0.125 / nx / ny) {}
+    ): _mesh(nx, ny, surfaceMap), _k(k), _nx(nx), _dim(2*nx*ny), _eps(2./std::sqrt(nx*ny)) {}
 
     void FormFullMatrix();
     void FormTruncatedMatrix(double threshold, bool print = true);
@@ -78,9 +78,9 @@ private:
     Eigen::VectorXcd _rhs;
 
     int _integralPoints = 8;
-    double _smootherEpsilon;
+    double _eps;
 
-    double _Smooth(double r) const;
+    inline double _Smooth(double r) const;
     void _printTruncMatrix();
     void _formBlockCol(Eigen::MatrixXcd& col, int j);
     Eigen::Vector3cd _RegularKernelPart(const Eigen::Vector3d& j, const Rectangle& X, const Eigen::Vector3d& x0);
@@ -89,6 +89,6 @@ private:
     Eigen::Matrix2cd _RegularPart(const Rectangle& X, const Rectangle& X0);
 };
 
-double PlaneParRectDist(const Rectangle& A, const Rectangle& B);
+inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B);
 
 }
