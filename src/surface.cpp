@@ -157,6 +157,7 @@ Eigen::Matrix2cd RectangleSurfaceSolver::_LocalMatrix(const Rectangle& X, const 
 void RectangleSurfaceSolver::_formBlockCol(Eigen::MatrixXcd& blockCol, int j) {
     blockCol.resize(_dim, 2);
     const auto& rectangles = _mesh.Data();
+    #pragma omp parallel for
     for (int i = 0; i < _dim / 2; i++) {
         blockCol.block<2, 2>(2*i, 0) = _LocalMatrix(rectangles[j], rectangles[i]);
     }
@@ -292,19 +293,19 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
         rowStarts.push_back(nnz);
     }
 
-    Eigen::SparseMatrix<double> haar1D;
-    MakeHaarMatrix1D(_nx, haar1D);
+    Eigen::SparseMatrix<double> haarX, haarY;
+    MakeHaarMatrix1D(_nx, haarX);
+    MakeHaarMatrix1D(_nx, haarY);
     
     for (int ky = 0; ky < _nx; ky++) {
         for (int kx = 0; kx < _nx; kx++) {
             const int k = _nx * ky + kx;
             Eigen::MatrixXcd blockB;
             _formBlockCol(blockB, k);
-            for (Eigen::SparseMatrix<double>::InnerIterator ity(haar1D,ky); ity; ++ity) {
-                for (Eigen::SparseMatrix<double>::InnerIterator itx(haar1D,kx); itx; ++itx) {
+            for (Eigen::SparseMatrix<double>::InnerIterator ity(haarY,ky); ity; ++ity) {
+                for (Eigen::SparseMatrix<double>::InnerIterator itx(haarX,kx); itx; ++itx) {
                     const int j = _nx * ity.row() + itx.row(); 
                     const double haar = ity.value() * itx.value();
-                    #pragma omp parallel for
                     for (size_t tr = rowStarts[j]; tr < rowStarts[j+1]; tr += 4) {
                         const int i = triplets[tr].row() / 2;
 

@@ -93,10 +93,12 @@ public:
 
 template <typename Vector>
 void Haar2D(Vector& x, size_t size) {
+    #pragma omp parallel for
     for (size_t j = 0; j < size; j++) {
         Col col(x, size, j);
         Haar(col);
     }
+    #pragma omp parallel for
     for (size_t i = 0; i < size; i++) {
         Row row(x, size, i);
         Haar(row);
@@ -105,10 +107,12 @@ void Haar2D(Vector& x, size_t size) {
 
 template <typename Vector>
 void HaarInverse2D(Vector& x, size_t size) {
+    #pragma omp parallel for
     for (size_t i = 1; i <= size; i++) {
         Row row(x, size, size - i);
         HaarInverse(row);
     }
+    #pragma omp parallel for
     for (size_t j = 1; j <= size; j++) {
         Col col(x, size, size - j);
         HaarInverse(col);
