@@ -50,7 +50,7 @@ public:
     RectangleSurfaceSolver(
         int nx, int ny, double k,
         const std::function<Eigen::Vector3d(double, double)>& surfaceMap
-    ): _mesh(nx, ny, surfaceMap), _k(k), _nx(nx), _dim(2*nx*ny), _eps(2./std::sqrt(nx*ny)) {}
+    ): _mesh(nx, ny, surfaceMap), _k(k), _nx(nx), _dim(2*nx*ny), _eps(2./std::sqrt(nx*ny)), _adopt(std::log2(1.*nx*ny)) {}
 
     void FormFullMatrix();
     void FormTruncatedMatrix(double threshold, bool print = true);
@@ -77,13 +77,14 @@ private:
     Eigen::SparseMatrix<std::complex<double>> _truncMatrix;
     Eigen::VectorXcd _rhs;
 
-    int _integralPoints = 8;
-    double _eps;
+    const int _integralPoints = 8;
+    const double _eps;
+    const double _adopt;
 
     inline double _Smooth(double r) const;
     void _printTruncMatrix();
     void _formBlockCol(Eigen::MatrixXcd& col, int j);
-    Eigen::Vector3cd _RegularKernelPart(const Eigen::Vector3d& j, const Rectangle& X, const Eigen::Vector3d& x0);
+    Eigen::Vector3cd _RegularKernelPart(const Eigen::Vector3d& j, const Rectangle& X, const Rectangle& X0);
     Eigen::Vector3cd _MainKernelPart(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& x);
     Eigen::Matrix2cd _LocalMatrix(const Rectangle& X, const Rectangle& X0);
     Eigen::Matrix2cd _RegularPart(const Rectangle& X, const Rectangle& X0);

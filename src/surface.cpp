@@ -105,13 +105,15 @@ inline Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, c
 }
 
 Eigen::Vector3cd RectangleSurfaceSolver::
-_RegularKernelPart(const Eigen::Vector3d& J, const Rectangle& X, const Eigen::Vector3d& x0) { 
-    double hx = (X.b - X.a).norm() / _integralPoints;
-    double hy = (X.c - X.b).norm() / _integralPoints;
+_RegularKernelPart(const Eigen::Vector3d& J, const Rectangle& X, const Rectangle& X0) {
+    const Eigen::Vector3d& x0 = X0.center;
+    int points = PlaneParRectDist(X, X0) /std::sqrt(std::min(X.area, X0.area)) < _adopt ? _integralPoints : 2;
+    double hx = (X.b - X.a).norm() / points;
+    double hy = (X.c - X.b).norm() / points;
     Eigen::Vector3cd result;
     result.fill({0., 0.});
-    for (int i = 0; i < _integralPoints; i++) {
-        for (int j = 0; j < _integralPoints; j++) {
+    for (int i = 0; i < points; i++) {
+        for (int j = 0; j < points; j++) {
             const Eigen::Vector3d O = X.a + (hx * i) * X.e1 + (hy * j) * X.e2;
             const Rectangle s(O, O + hx * X.e1, O + hx * X.e1 + hy * X.e2, O + hy * X.e2);
             result += _Smooth((s.center - x0).norm()) * s.area * K1(J, x0, s.center, _k);
@@ -143,8 +145,8 @@ Eigen::Matrix2cd RectangleSurfaceSolver::_LocalMatrix(const Rectangle& X, const 
     Ke2 += X.e2.cross(X.normal).dot(t_cd) * I_cd;
     Ke2 += X.e2.cross(X.normal).dot(t_da) * I_da;
 
-    Ke1 += _RegularKernelPart(X.e1, X, X0.center);
-    Ke2 += _RegularKernelPart(X.e2, X, X0.center);
+    Ke1 += _RegularKernelPart(X.e1, X, X0);
+    Ke2 += _RegularKernelPart(X.e2, X, X0);
 
     a(0, 0) =  X0.normal.cast<complex>().cross(Ke1).dot(X0.e2.cast<complex>());
     a(1, 0) = -X0.normal.cast<complex>().cross(Ke1).dot(X0.e1.cast<complex>());
@@ -297,30 +299,29 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
     MakeHaarMatrix1D(_nx, haarX);
     MakeHaarMatrix1D(_nx, haarY);
     
-    for (int ky = 0; ky < _nx; ky++) {
-        for (int kx = 0; kx < _nx; kx++) {
-            const int k = _nx * ky + kx;
-            Eigen::MatrixXcd blockB;
-            _formBlockCol(blockB, k);
-            for (Eigen::SparseMatrix<double>::InnerIterator ity(haarY,ky); ity; ++ity) {
-                for (Eigen::SparseMatrix<double>::InnerIterator itx(haarX,kx); itx; ++itx) {
-                    const int j = _nx * ity.row() + itx.row(); 
-                    const double haar = ity.value() * itx.value();
-                    for (size_t tr = rowStarts[j]; tr < rowStarts[j+1]; tr += 4) {
-                        const int i = triplets[tr].row() / 2;
+    for (int k = 0; k < N; k++) {
+        const int ky = k / _nx, kx = k % _nx;
+        Eigen::MatrixXcd blockB;
+        _formBlockCol(blockB, k);
+        #pragma omp parallel for
+        for (int jy = haarY.outerIndexPtr()[ky]; jy < haarY.outerIndexPtr()[ky+1]; jy++) {
+            for (int jx = haarX.outerIndexPtr()[kx]; jx < haarX.outerIndexPtr()[kx+1]; jx++) {
+                const int j = _nx * haarY.innerIndexPtr()[jy] + haarX.innerIndexPtr()[jx]; 
+                const double haar = haarX.valuePtr()[jx] * haarY.valuePtr()[jy];
+                for (size_t tr = rowStarts[j]; tr < rowStarts[j+1]; tr += 4) {
+                    const int i = triplets[tr].row() / 2;
 
-                        complex& C_0_0 = const_cast<complex&>(triplets[tr].value());
-                        complex& C_1_0 = const_cast<complex&>(triplets[tr+1].value());
-                        complex& C_0_1 = const_cast<complex&>(triplets[tr+2].value());
-                        complex& C_1_1 = const_cast<complex&>(triplets[tr+3].value());
+                    complex& C_0_0 = const_cast<complex&>(triplets[tr].value());
+                    complex& C_1_0 = const_cast<complex&>(triplets[tr+1].value());
+                    complex& C_0_1 = const_cast<complex&>(triplets[tr+2].value());
+                    complex& C_1_1 = const_cast<complex&>(triplets[tr+3].value());
 
-                        const auto B = blockB.block<2, 2>(2*i, 0);
+                    const auto B = blockB.block<2, 2>(2*i, 0);
 
-                        C_0_0 += haar * B(0, 0);
-                        C_1_0 += haar * B(1, 0);
-                        C_0_1 += haar * B(0, 1);
-                        C_1_1 += haar * B(1, 1);
-                    }
+                    C_0_0 += haar * B(0, 0);
+                    C_1_0 += haar * B(1, 0);
+                    C_0_1 += haar * B(0, 1);
+                    C_1_1 += haar * B(1, 1);
                 }
             }
         }
