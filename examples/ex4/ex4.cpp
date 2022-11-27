@@ -79,6 +79,7 @@ int main(int argc, char* argv[]) {
     cout << "Time for solution: " << profiler.Toc() << " s." << endl;
 
     solver.PlotSolutionMap(x);
+    solver.PrintSolutionVtk(x);
     cout << "Done" << endl;
     
     return 0;

@@ -65,8 +65,9 @@ public:
 
     const Eigen::VectorXcd& GetRhs() const {return _rhs;}
 
-    void PlotSolutionMap(Eigen::VectorXcd& x) const;
+    void PlotSolutionMap(Eigen::VectorXcd x) const;
     void PrintFullMatrix(const std::string& file) const;
+    void PrintSolutionVtk(Eigen::VectorXcd x) const;
 
 private:
     const double _k;

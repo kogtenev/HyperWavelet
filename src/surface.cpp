@@ -195,10 +195,11 @@ void RectangleSurfaceSolver::FormFullMatrix() {
 }
 
 void RectangleSurfaceSolver::FormTruncatedMatrix(double threshold, bool print) {
-    _mesh.HaarTransform();
+    RectangleMesh haarMesh = _mesh;
+    haarMesh.HaarTransform();
     std::cout << "Forming truncated matrix\n";
     Profiler profiler;
-    const auto& rectangles = _mesh.Data();
+    const auto& rectangles = haarMesh.Data();
     const int n = rectangles.size();
     std::vector<Eigen::Triplet<complex>> triplets;
     _truncMatrix.resize(_dim, _dim);
@@ -356,7 +357,7 @@ void RectangleSurfaceSolver::FormRhs(const std::function<Eigen::Vector3cd(const 
     }
 }
 
-void RectangleSurfaceSolver::PlotSolutionMap(Eigen::VectorXcd& x) const {
+void RectangleSurfaceSolver::PlotSolutionMap(Eigen::VectorXcd x) const {
     std::cout << "Applying inverse Haar transfrom\n";
     Subvector2D E0(x, _nx, 0);
     HaarInverse2D(E0, _nx);
@@ -403,6 +404,49 @@ void RectangleSurfaceSolver::PrintFullMatrix(const std::string& file) const {
         }
         fout << '\n';
     }
+}
+
+void RectangleSurfaceSolver::PrintSolutionVtk(Eigen::VectorXcd x) const {
+    std::cout << "Applying inverse Haar transfrom\n";
+    Subvector2D E0(x, _nx, 0);
+    HaarInverse2D(E0, _nx);
+    Subvector2D E1(x, _nx, 1);
+    HaarInverse2D(E1, _nx);
+    std::ofstream fout("solution.vtk", std::ios::out);
+    fout << "# vtk DataFile Version 3.0\n";
+    fout << "Surface electric current\n";
+    fout << "ASCII\n";
+    fout << "DATASET POLYDATA\n";
+    const int npoints = _mesh.Data().size() * 4;
+    const int ncels = _mesh.Data().size();
+    fout << "POINTS " << npoints << " double\n";
+    for (const auto& rectangle: _mesh.Data()) {
+        fout << rectangle.a << '\n' << rectangle.b << '\n' << rectangle.c << '\n' << rectangle.d << '\n';
+    }
+    int i = 0;
+    fout << "POLYGONS " << ncels << ' ' << 5 * ncels << '\n';
+    for (const auto& rectangle: _mesh.Data()) {
+        fout << "4 " << i << ' ' << i+1 << ' ' << i+2 << ' ' << i+3 << '\n';
+        i += 4; 
+    }
+    fout << "CELL_DATA " << ncels << '\n';
+    fout << "VECTORS J_REAL double\n";
+    i = 0;
+    for (const auto& rectangle: _mesh.Data()) {
+        Eigen::Vector3cd J = x[2*i]*rectangle.e1.cast<complex>() + x[2*i+1]*rectangle.e2.cast<complex>();
+        J = rectangle.normal.cast<complex>().cross(J).cross(rectangle.normal.cast<complex>());
+        fout << J.real() << '\n';
+        i++;
+    }
+    fout << "VECTORS J_IMAG double\n";
+    i = 0;
+    for (const auto& rectangle: _mesh.Data()) {
+        Eigen::Vector3cd J = x[2*i]*rectangle.e1.cast<complex>() + x[2*i+1]*rectangle.e2.cast<complex>();
+        J = rectangle.normal.cast<complex>().cross(J).cross(rectangle.normal.cast<complex>());
+        fout << J.imag() << '\n';
+        i++;
+    }
+    fout.close();
 }
 
 inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B) {
