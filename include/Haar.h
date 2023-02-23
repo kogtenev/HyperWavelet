@@ -56,65 +56,69 @@ void HaarInverse(Vector& x) {
 template <typename Vector>
 class Row { 
 public:
-    Row(Vector &data, size_t size, size_t row): data(data), _size(size), row(row) {}
+    Row(Vector &data, size_t ncols, size_t nrows, size_t row)
+    : data(data), ncols(ncols), nrows(nrows), row(row) {}
 
     auto& operator[](size_t i) {
-        return data[row + i * _size];
+        return data[row + i * ncols];
     } 
 
-    size_t size() {return _size;}
+    size_t size() { return ncols; }
 
     using Scalar = typename Vector::Scalar;
 
-public:
+private:
     Vector& data;
-    size_t _size;
+    size_t nrows;
+    size_t ncols;
     size_t row;
 };
 
 template <typename Vector>
 class Col { 
 public:
-    Col(Vector& data, size_t size, size_t col): data(data), _size(size), col(col) {}
+    Col(Vector& data, size_t ncols, size_t nrows, size_t col)
+    : data(data), ncols(ncols), nrows(nrows), col(col) {}
 
     auto& operator[](size_t i) {
-        return data[_size * col + i];
+        return data[nrows * col + i];
     }
 
-    size_t size() {return _size;}
+    size_t size() { return nrows; }
 
     using Scalar = typename Vector::Scalar;
 
-public:
+private:
     Vector& data;
-    size_t _size;
+    size_t nrows;
+    size_t ncols;
     size_t col;
 };
 
 template <typename Vector>
-void Haar2D(Vector& x, size_t size) {
+void Haar2D(Vector& x, size_t ncols, size_t nrows) {
     #pragma omp parallel for
-    for (size_t j = 0; j < size; j++) {
-        Col col(x, size, j);
+    for (size_t j = 0; j < ncols; j++) {
+        Col col(x, ncols, nrows, j);
         Haar(col);
     }
     #pragma omp parallel for
-    for (size_t i = 0; i < size; i++) {
-        Row row(x, size, i);
+    for (size_t i = 0; i < nrows; i++) {
+        Row row(x, ncols, nrows, i);
         Haar(row);
     }
 }
 
 template <typename Vector>
-void HaarInverse2D(Vector& x, size_t size) {
+void HaarInverse2D(Vector& x, size_t ncols, size_t nrows) {
     #pragma omp parallel for
-    for (size_t i = 1; i <= size; i++) {
-        Row row(x, size, size - i);
+    for (size_t i = 1; i <= nrows; i++) {
+        Row row(x, ncols, nrows, nrows - i);
         HaarInverse(row);
     }
     #pragma omp parallel for
-    for (size_t j = 1; j <= size; j++) {
-        Col col(x, size, size - j);
+    for (size_t j = 1; j <= ncols; j++) {
+        Col col(x, ncols, nrows, ncols - j);
         HaarInverse(col);
     }
 }
@@ -132,7 +136,7 @@ public:
 
     using Scalar = typename Vector::Scalar;
 
-public:  
+private:  
     Vector& data;
     size_t _size;
     int even;

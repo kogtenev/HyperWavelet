@@ -4,9 +4,11 @@
 #include <complex>
 
 #include <unsupported/Eigen/IterativeSolvers>
+#include "petscsys.h"  
 
 #include "surface.h"
 #include "helpers.h"
+#include "petsc.h"
 
 using namespace std;
 using namespace hyper_wavelet;
@@ -44,7 +46,11 @@ const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [](const Eigen::Vec
     return E0; 
 };
 
+static char petsc_magic[] = "Appends to an ASCII file.\n\n";
+
 int main(int argc, char* argv[]) {
+    PetscInitialize(&argc, &argv, (char*)0, petsc_magic);
+
     const double k = stod(argv[1]);
     const int nx = stoi(argv[2]);
     const int ny = stoi(argv[3]);
@@ -70,7 +76,7 @@ int main(int argc, char* argv[]) {
     //Eigen::SparseLU<Eigen::SparseMatrix<complex<double>>> lu(truncA);
     //Eigen::VectorXcd x = lu.solve(rhs);
     Eigen::GMRES<SparseMatrix, Eigen::IncompleteLUT<complex<double>>> gmres(truncA);
-    //gmres.setTolerance(1e-8);
+    gmres.setTolerance(1e-8);
     //gmres.setMaxIterations(nx * nx);
     Eigen::VectorXcd x = gmres.solve(rhs);
     Eigen::VectorXcd res = (truncA * x - rhs);
@@ -82,5 +88,7 @@ int main(int argc, char* argv[]) {
     solver.PrintSolutionVtk(x);
     cout << "Done" << endl;
     
+    PetscFinalize();
+
     return 0;
 }

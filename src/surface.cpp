@@ -107,7 +107,7 @@ inline Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, c
 Eigen::Vector3cd RectangleSurfaceSolver::
 _RegularKernelPart(const Eigen::Vector3d& J, const Rectangle& X, const Rectangle& X0) {
     const Eigen::Vector3d& x0 = X0.center;
-    int points = PlaneParRectDist(X, X0) /std::sqrt(std::min(X.area, X0.area)) < _adopt ? _integralPoints : 2;
+    int points = PlaneParRectDist(X, X0) /std::sqrt(std::min(X.area, X0.area)) < _adaptation ? _integralPoints : 2;
     double hx = (X.b - X.a).norm() / points;
     double hy = (X.c - X.b).norm() / points;
     Eigen::Vector3cd result;
@@ -172,10 +172,10 @@ void RectangleSurfaceSolver::_formBlockCol(Eigen::MatrixXcd& blockCol, int j) {
     Subvector2D V1_x(V1, _dim / 2, 0);
     Subvector2D V1_y(V1, _dim / 2, 1);
 
-    Haar2D(V0_x, _nx);
-    Haar2D(V0_y, _nx);
-    Haar2D(V1_x, _nx);
-    Haar2D(V1_y, _nx);
+    Haar2D(V0_x, _nx, _ny);
+    Haar2D(V0_y, _nx, _ny);
+    Haar2D(V1_x, _nx, _ny);
+    Haar2D(V1_y, _nx, _ny);
 }
 
 void RectangleSurfaceSolver::FormFullMatrix() {
@@ -298,7 +298,7 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
 
     Eigen::SparseMatrix<double> haarX, haarY;
     MakeHaarMatrix1D(_nx, haarX);
-    MakeHaarMatrix1D(_nx, haarY);
+    MakeHaarMatrix1D(_ny, haarY);
     
     for (int k = 0; k < N; k++) {
         const int ky = k / _nx, kx = k % _nx;
@@ -359,10 +359,10 @@ void RectangleSurfaceSolver::FormRhs(const std::function<Eigen::Vector3cd(const 
 
 void RectangleSurfaceSolver::PlotSolutionMap(Eigen::VectorXcd x) const {
     std::cout << "Applying inverse Haar transfrom\n";
-    Subvector2D E0(x, _nx, 0);
-    HaarInverse2D(E0, _nx);
-    Subvector2D E1(x, _nx, 1);
-    HaarInverse2D(E1, _nx);
+    Subvector2D E0(x, _dim / 2, 0);
+    HaarInverse2D(E0, _nx, _ny);
+    Subvector2D E1(x, _dim / 2, 1);
+    HaarInverse2D(E1, _nx, _ny);
     std::cout << "Printing solution\n";
     std::ofstream fout("solution.txt", std::ios::out);
     for (int i = 0; i < _dim; i++) {
@@ -374,25 +374,26 @@ void RectangleSurfaceSolver::PlotSolutionMap(Eigen::VectorXcd x) const {
 void RectangleSurfaceSolver::HaarTransform() {
     if (_fullMatrix.size()) {
         for (int i = 0; i < _dim; i++) {
+            std::cout << i << std::endl;
             auto col = _fullMatrix.col(i);
             Subvector2D E0(col, _dim / 2, 0);
-            Haar2D(E0, _nx);
+            Haar2D(E0, _nx, _ny);
             Subvector2D E1(col, _dim / 2, 1);
-            Haar2D(E1, _nx);
+            Haar2D(E1, _nx, _ny);
         }
         for (int i = 0; i < _dim; i++) {
             auto row = _fullMatrix.row(i);
             Subvector2D E0(row, _dim / 2, 0);
-            Haar2D(E0, _nx);
+            Haar2D(E0, _nx, _ny);
             Subvector2D E1(row, _dim / 2, 1);
-            Haar2D(E1, _nx);
+            Haar2D(E1, _nx, _ny);
         }
     }
     if (_rhs.size()) {
         Subvector2D f0(_rhs, _dim / 2, 0);
-        Haar2D(f0, _nx);
+        Haar2D(f0, _nx, _ny);
         Subvector2D f1(_rhs, _dim / 2, 1);
-        Haar2D(f1, _nx);
+        Haar2D(f1, _nx, _ny);
     }   
 }
 
@@ -408,28 +409,28 @@ void RectangleSurfaceSolver::PrintFullMatrix(const std::string& file) const {
 
 void RectangleSurfaceSolver::PrintSolutionVtk(Eigen::VectorXcd x) const {
     std::cout << "Applying inverse Haar transfrom\n";
-    Subvector2D E0(x, _nx, 0);
-    HaarInverse2D(E0, _nx);
-    Subvector2D E1(x, _nx, 1);
-    HaarInverse2D(E1, _nx);
+    Subvector2D E0(x, _dim / 2, 0);
+    HaarInverse2D(E0, _nx, _ny);
+    Subvector2D E1(x, _dim / 2, 1);
+    HaarInverse2D(E1, _nx, _ny);
     std::ofstream fout("solution.vtk", std::ios::out);
     fout << "# vtk DataFile Version 3.0\n";
     fout << "Surface electric current\n";
     fout << "ASCII\n";
     fout << "DATASET POLYDATA\n";
     const int npoints = _mesh.Data().size() * 4;
-    const int ncels = _mesh.Data().size();
+    const int ncells  = _mesh.Data().size();
     fout << "POINTS " << npoints << " double\n";
     for (const auto& rectangle: _mesh.Data()) {
         fout << rectangle.a << '\n' << rectangle.b << '\n' << rectangle.c << '\n' << rectangle.d << '\n';
     }
     int i = 0;
-    fout << "POLYGONS " << ncels << ' ' << 5 * ncels << '\n';
+    fout << "POLYGONS " << ncells << ' ' << 5 * ncells << '\n';
     for (const auto& rectangle: _mesh.Data()) {
         fout << "4 " << i << ' ' << i+1 << ' ' << i+2 << ' ' << i+3 << '\n';
         i += 4; 
     }
-    fout << "CELL_DATA " << ncels << '\n';
+    fout << "CELL_DATA " << ncells << '\n';
     fout << "VECTORS J_REAL double\n";
     i = 0;
     for (const auto& rectangle: _mesh.Data()) {

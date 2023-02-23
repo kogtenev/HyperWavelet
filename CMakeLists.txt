@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+set(PETSC $ENV{PETSC_DIR}/$ENV{PETSC_ARCH})
+set(ENV{PKG_CONFIG_PATH} ${PETSC}/lib/pkgconfig)
+
 project(HyperWavelet)
 
 include_directories(include)

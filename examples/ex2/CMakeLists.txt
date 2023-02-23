@@ -1,3 +1,6 @@
 add_executable(ex2 ex2.cpp)
-target_link_libraries(ex2 hyperwavelet)
+find_package(PkgConfig REQUIRED)
+pkg_search_module(PETSC REQUIRED IMPORTED_TARGET PETSc)
+add_link_options(-lpthread -openmp)
+target_link_libraries(ex2 hyperwavelet PkgConfig::PETSC)
 install(TARGETS ex2 DESTINATION /home/dmitriy/HyperWavelet/examples/ex2/)

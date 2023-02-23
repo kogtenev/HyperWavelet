@@ -5,6 +5,8 @@
 
 namespace hyper_wavelet_2d {
 
+enum LinearSolverType {EigenLU, EigenGMRES, PETScGMRES};
+
 struct Rectangle {
     Eigen::Vector3d a, b, c, d;
     Eigen::Vector3d center;
@@ -43,14 +45,12 @@ private:
     int _ny;
 }; 
 
-
-
 class RectangleSurfaceSolver {
 public:
-    RectangleSurfaceSolver(
-        int nx, int ny, double k,
+    RectangleSurfaceSolver(int nx, int ny, double k, 
         const std::function<Eigen::Vector3d(double, double)>& surfaceMap
-    ): _mesh(nx, ny, surfaceMap), _k(k), _nx(nx), _dim(2*nx*ny), _eps(2./std::sqrt(nx*ny)), _adopt(std::log2(1.*nx*ny)) {}
+    ): _mesh(nx, ny, surfaceMap), _k(k), _nx(nx), _ny(ny), _dim(2*nx*ny), 
+       _eps(2./std::sqrt(nx*ny)), _adaptation(std::log2(1.*nx*ny)) {}
 
     void FormFullMatrix();
     void FormTruncatedMatrix(double threshold, bool print = true);
@@ -72,7 +72,7 @@ public:
 private:
     const double _k;
     const int _dim;
-    const int _nx;
+    const int _nx, _ny;
     RectangleMesh _mesh;
     Eigen::MatrixXcd _fullMatrix;
     Eigen::SparseMatrix<std::complex<double>> _truncMatrix;
@@ -80,7 +80,7 @@ private:
 
     const int _integralPoints = 8;
     const double _eps;
-    const double _adopt;
+    const double _adaptation;
 
     inline double _Smooth(double r) const;
     void _printTruncMatrix();

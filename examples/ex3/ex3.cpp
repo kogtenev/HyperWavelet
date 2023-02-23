@@ -110,6 +110,7 @@ int main(int argc, char* argv[]) {
     cout << "Relative error: " << (_x - x).norm() / x.norm() << endl << endl;
 
     solver.PlotSolutionMap(_x);
+    solver.PrintSolutionVtk(x);
     cout << "Done" << endl;
     
     return 0;
