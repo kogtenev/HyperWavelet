@@ -409,9 +409,9 @@ void RectangleSurfaceSolver::PrintFullMatrix(const std::string& file) const {
 void RectangleSurfaceSolver::PrintSolutionVtk(Eigen::VectorXcd x) const {
     std::cout << "Applying inverse Haar transfrom\n";
     Subvector2D E0(x, _dim / 2, 0);
-    HaarInverse2D(E0, _nx, _ny);
+    HaarInverse2D(E0, _ny, _nx);
     Subvector2D E1(x, _dim / 2, 1);
-    HaarInverse2D(E1, _nx, _ny);
+    HaarInverse2D(E1, _ny, _nx);
     std::ofstream fout("solution.vtk", std::ios::out);
     fout << "# vtk DataFile Version 3.0\n";
     fout << "Surface electric current\n";
