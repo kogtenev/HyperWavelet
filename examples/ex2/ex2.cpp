@@ -162,7 +162,7 @@ function<double(double, double)> K = [](double x, double y) {
 static char petsc_magic[] = "Appends to an ASCII file.\n\n";
 
 int main(int argc, char* argv[]) {
-    PetscInitialize(&argc, &argv, (char*)0, petsc_magic);
+    //PetscInitialize(&argc, &argv, (char*)0, petsc_magic);
 
     int numLevels = stoi(argv[1]);
     double a = stod(argv[2]);
@@ -219,23 +219,23 @@ int main(int argc, char* argv[]) {
     method.FormTruncatedMatrix(threshold, reg, printTrunctated);
     const auto& sparseMatrix = method.GetTruncatedMatrix();
 
-    /*Eigen::MatrixXd errA = A;
+    Eigen::MatrixXd errA = A;
     errA -= sparseMatrix;
     Eigen::BDCSVD<Eigen::MatrixXd> svd(errA);
     const auto& sigma = svd.singularValues();
-    cout << "Relative error for sparse matrix: " << sigma(0) / normA << endl << endl;*/
+    cout << "Relative error for sparse matrix: " << sigma(0) / normA << endl << endl;
 
     cout << "Solving system with truncated matrix" << endl;
     profiler.Tic();
-    //Eigen::SparseLU<Eigen::SparseMatrix<double>> lu(sparseMatrix);
-    //Eigen::VectorXd _x = lu.solve(rhs);
+    Eigen::SparseLU<Eigen::SparseMatrix<double>> lu(sparseMatrix);
+    Eigen::VectorXd _x = lu.solve(rhs);
     /*Eigen::GMRES<Eigen::SparseMatrix<double>, Eigen::IncompleteLUT<double>> gmres(sparseMatrix);
     Eigen::VectorXd _x = gmres.solve(rhs);
     cout << "Iterations: " << gmres.iterations() << endl;*/
 
-    PETSC::PGMRES<double> gmres(sparseMatrix);
-    Eigen::VectorXd _x = gmres.Solve(rhs);
-    cout << "Time for solution: " << profiler.Toc() << " s." << endl;
+    //PETSC::PGMRES<double> gmres(sparseMatrix);
+    //Eigen::VectorXd _x = gmres.Solve(rhs);
+    //cout << "Time for solution: " << profiler.Toc() << " s." << endl;
 
     Eigen::VectorXd err = x - _x;
     cout << "Relative error: " << err.norm() / x.norm() << endl;

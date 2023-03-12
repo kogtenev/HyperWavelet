@@ -75,17 +75,18 @@ int main(int argc, char* argv[]) {
     Profiler profiler;
     //Eigen::SparseLU<Eigen::SparseMatrix<complex<double>>> lu(truncA);
     //Eigen::VectorXcd x = lu.solve(rhs);
-    Eigen::GMRES<SparseMatrix, Eigen::IncompleteLUT<complex<double>>> gmres(truncA);
-    gmres.setTolerance(1e-8);
+    //Eigen::GMRES<SparseMatrix, Eigen::IncompleteLUT<complex<double>>> gmres(truncA);
+    //gmres.setTolerance(1e-8);
     //gmres.setMaxIterations(nx * nx);
-    Eigen::VectorXcd x = gmres.solve(rhs);
+    PETSC::PGMRES gmres(truncA);
+    Eigen::VectorXcd x = gmres.Solve(rhs);
     Eigen::VectorXcd res = (truncA * x - rhs);
-    cout << "iterations: " << gmres.iterations() << endl;
+    //cout << "iterations: " << gmres.iterations() << endl;
     cout << "Relative residual: " << res.norm() / rhs.norm() << endl;
     cout << "Time for solution: " << profiler.Toc() << " s." << endl;
 
-    solver.PlotSolutionMap(x);
-    solver.PrintSolutionVtk(x);
+    //solver.PlotSolutionMap(x);
+    //solver.PrintSolutionVtk(x);
     cout << "Done" << endl;
     
     PetscFinalize();
