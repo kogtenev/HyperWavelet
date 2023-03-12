@@ -60,7 +60,7 @@ public:
     : data(data), ncols(ncols), nrows(nrows), row(row) {}
 
     auto& operator[](size_t i) {
-        return data[row + i * ncols];
+        return data[row + i * nrows];
     } 
 
     size_t size() { return ncols; }

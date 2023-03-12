@@ -172,10 +172,10 @@ void RectangleSurfaceSolver::_formBlockCol(Eigen::MatrixXcd& blockCol, int j) {
     Subvector2D V1_x(V1, _dim / 2, 0);
     Subvector2D V1_y(V1, _dim / 2, 1);
 
-    Haar2D(V0_x, _nx, _ny);
-    Haar2D(V0_y, _nx, _ny);
-    Haar2D(V1_x, _nx, _ny);
-    Haar2D(V1_y, _nx, _ny);
+    Haar2D(V0_x, _ny, _nx);
+    Haar2D(V0_y, _ny, _nx);
+    Haar2D(V1_x, _ny, _nx);
+    Haar2D(V1_y, _ny, _nx);
 }
 
 void RectangleSurfaceSolver::FormFullMatrix() {
@@ -360,9 +360,9 @@ void RectangleSurfaceSolver::FormRhs(const std::function<Eigen::Vector3cd(const 
 void RectangleSurfaceSolver::PlotSolutionMap(Eigen::VectorXcd x) const {
     std::cout << "Applying inverse Haar transfrom\n";
     Subvector2D E0(x, _dim / 2, 0);
-    HaarInverse2D(E0, _nx, _ny);
+    HaarInverse2D(E0, _ny, _nx);
     Subvector2D E1(x, _dim / 2, 1);
-    HaarInverse2D(E1, _nx, _ny);
+    HaarInverse2D(E1, _ny, _nx);
     std::cout << "Printing solution\n";
     std::ofstream fout("solution.txt", std::ios::out);
     for (int i = 0; i < _dim; i++) {
@@ -374,26 +374,25 @@ void RectangleSurfaceSolver::PlotSolutionMap(Eigen::VectorXcd x) const {
 void RectangleSurfaceSolver::HaarTransform() {
     if (_fullMatrix.size()) {
         for (int i = 0; i < _dim; i++) {
-            std::cout << i << std::endl;
             auto col = _fullMatrix.col(i);
             Subvector2D E0(col, _dim / 2, 0);
-            Haar2D(E0, _nx, _ny);
+            Haar2D(E0, _ny, _nx);
             Subvector2D E1(col, _dim / 2, 1);
-            Haar2D(E1, _nx, _ny);
+            Haar2D(E1, _ny, _nx);
         }
         for (int i = 0; i < _dim; i++) {
             auto row = _fullMatrix.row(i);
             Subvector2D E0(row, _dim / 2, 0);
-            Haar2D(E0, _nx, _ny);
+            Haar2D(E0, _ny, _nx);
             Subvector2D E1(row, _dim / 2, 1);
-            Haar2D(E1, _nx, _ny);
+            Haar2D(E1, _ny, _nx);
         }
     }
     if (_rhs.size()) {
         Subvector2D f0(_rhs, _dim / 2, 0);
-        Haar2D(f0, _nx, _ny);
+        Haar2D(f0, _ny, _nx);
         Subvector2D f1(_rhs, _dim / 2, 1);
-        Haar2D(f1, _nx, _ny);
+        Haar2D(f1, _ny, _nx);
     }   
 }
 
