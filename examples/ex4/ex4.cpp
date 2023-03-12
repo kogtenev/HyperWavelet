@@ -85,8 +85,8 @@ int main(int argc, char* argv[]) {
     cout << "Relative residual: " << res.norm() / rhs.norm() << endl;
     cout << "Time for solution: " << profiler.Toc() << " s." << endl;
 
-    //solver.PlotSolutionMap(x);
-    //solver.PrintSolutionVtk(x);
+    solver.PlotSolutionMap(x);
+    solver.PrintSolutionVtk(x);
     cout << "Done" << endl;
     
     PetscFinalize();
