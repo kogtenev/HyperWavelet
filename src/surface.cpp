@@ -1,6 +1,7 @@
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 #include "surface.h"
 #include "helpers.h"
@@ -52,6 +53,29 @@ void PrepareSupports1D(std::vector<Interval>& intervals, int n) {
     if (cnt != n) {
        throw std::runtime_error("Cannot prepare 1D Haar supports!");
     }
+}
+
+std::array<Rectangle, 4> Bisection(const Rectangle& A) {
+    std::array<Rectangle, 4> result;
+    result[0] = Rectangle(A.a, (A.a + A.b) / 2, A.center, (A.a + A.d) / 2);
+    result[1] = Rectangle((A.a + A.b) / 2, A.b, (A.b + A.c) / 2, A.center);
+    result[2] = Rectangle(A.center, (A.b + A.c) / 2, A.c, (A.c + A.d) / 2);
+    result[3] = Rectangle((A.a + A.d) / 2, A.center, (A.c + A.d) / 2, A.d);
+    return result;
+}
+
+std::vector<Rectangle> RefineRectangle(const Rectangle& rectangle, int numLevels) {
+    std::vector<Rectangle> result {rectangle};
+    std::vector<Rectangle> helper;
+    for (int level = 0; level < numLevels; ++level) {
+        helper.resize(0);
+        for (const auto& rect: result) {
+            auto refined = Bisection(rect);
+            helper.insert(helper.end(), result.begin(), result.end());
+        }
+        result = std::move(helper);
+    }
+    return result;
 }
 
 void RectangleMesh::HaarTransform() {
