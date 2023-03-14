@@ -106,6 +106,14 @@ void RectangleMesh::HaarTransform() {
     std::cout << "Time for preparation: " << profiler.Toc() << " s.\n\n";
 }
 
+const std::function<Eigen::Vector3d(double, double)> _unitMap = [](double x, double y) {
+    Eigen::Vector3d result;
+    result[0] = x;
+    result[1] = y;
+    result[2] = 0.;
+    return result;
+};
+
 inline double RectangleSurfaceSolver::_Smooth(double r) const {
     return r < _eps ? 3*r*r*r/_eps/_eps/_eps - 2*r*r/_eps/_eps : 1.;
 }
@@ -197,6 +205,14 @@ void RectangleSurfaceSolver::_formBlockCol(Eigen::MatrixXcd& blockCol, int j) {
     Haar2D(V1_y, _ny, _nx);
 }
 
+RectangleSurfaceSolver::RectangleSurfaceSolver(int nx, int ny, double k, 
+    const std::function<Eigen::Vector3d(double, double)>& surfaceMap
+): _mesh(nx, ny, surfaceMap), _unitMesh(nx, ny, _unitMap), 
+   _k(k), _nx(nx), _ny(ny), _dim(2*nx*ny), _eps(2./std::sqrt(nx*ny)),
+   _adaptation(std::log2(1.*nx*ny)) {
+
+}
+
 void RectangleSurfaceSolver::FormFullMatrix() {
     std::cout << "Forming full matrix" << std::endl;
     std::cout << "Matrix size: " << _dim << " x " << _dim << std::endl;
@@ -214,7 +230,7 @@ void RectangleSurfaceSolver::FormFullMatrix() {
 }
 
 void RectangleSurfaceSolver::FormTruncatedMatrix(double threshold, bool print) {
-    RectangleMesh haarMesh = _mesh;
+    RectangleMesh haarMesh = _unitMesh;
     haarMesh.HaarTransform();
     std::cout << "Forming truncated matrix\n";
     Profiler profiler;
@@ -287,7 +303,7 @@ void MakeHaarMatrix1D(int n, Eigen::SparseMatrix<double>& H) {
 }
 
 void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
-    auto haarMesh = _mesh;
+    auto haarMesh = _unitMesh;
     haarMesh.HaarTransform();
     std::cout << "Forming truncated matrix\n";
     Profiler profiler;

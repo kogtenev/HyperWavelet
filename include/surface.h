@@ -50,9 +50,7 @@ private:
 class RectangleSurfaceSolver {
 public:
     RectangleSurfaceSolver(int nx, int ny, double k, 
-        const std::function<Eigen::Vector3d(double, double)>& surfaceMap
-    ): _mesh(nx, ny, surfaceMap), _k(k), _nx(nx), _ny(ny), _dim(2*nx*ny), 
-       _eps(2./std::sqrt(nx*ny)), _adaptation(std::log2(1.*nx*ny)) {}
+        const std::function<Eigen::Vector3d(double, double)>& surfaceMap);
 
     void FormFullMatrix();
     void FormTruncatedMatrix(double threshold, bool print = true);
@@ -75,7 +73,7 @@ private:
     const double _k;
     const int _dim;
     const int _nx, _ny;
-    RectangleMesh _mesh;
+    RectangleMesh _mesh, _unitMesh;
     Eigen::MatrixXcd _fullMatrix;
     Eigen::SparseMatrix<std::complex<double>> _truncMatrix;
     Eigen::VectorXcd _rhs;
