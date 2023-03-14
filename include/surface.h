@@ -80,7 +80,7 @@ private:
     Eigen::SparseMatrix<std::complex<double>> _truncMatrix;
     Eigen::VectorXcd _rhs;
 
-    const int _integralPoints = 8;
+    const int _refineLevels = 3;
     const double _eps;
     const double _adaptation;
 

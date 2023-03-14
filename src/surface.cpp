@@ -71,7 +71,7 @@ std::vector<Rectangle> RefineRectangle(const Rectangle& rectangle, int numLevels
         helper.resize(0);
         for (const auto& rect: result) {
             auto refined = Bisection(rect);
-            helper.insert(helper.end(), result.begin(), result.end());
+            helper.insert(helper.end(), refined.begin(), refined.end());
         }
         result = std::move(helper);
     }
@@ -131,17 +131,12 @@ inline Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, c
 Eigen::Vector3cd RectangleSurfaceSolver::
 _RegularKernelPart(const Eigen::Vector3d& J, const Rectangle& X, const Rectangle& X0) {
     const Eigen::Vector3d& x0 = X0.center;
-    int points = PlaneParRectDist(X, X0) /std::sqrt(std::min(X.area, X0.area)) < _adaptation ? _integralPoints : 2;
-    double hx = (X.b - X.a).norm() / points;
-    double hy = (X.c - X.b).norm() / points;
+    int levels = PlaneParRectDist(X, X0) /std::sqrt(std::min(X.area, X0.area)) < _adaptation ? _refineLevels : 1;
     Eigen::Vector3cd result;
     result.fill({0., 0.});
-    for (int i = 0; i < points; i++) {
-        for (int j = 0; j < points; j++) {
-            const Eigen::Vector3d O = X.a + (hx * i) * X.e1 + (hy * j) * X.e2;
-            const Rectangle s(O, O + hx * X.e1, O + hx * X.e1 + hy * X.e2, O + hy * X.e2);
-            result += _Smooth((s.center - x0).norm()) * s.area * K1(J, x0, s.center, _k);
-        }
+    const auto& rectangles = RefineRectangle(X, levels);
+    for (const auto& s: rectangles) {
+        result += _Smooth((s.center - x0).norm()) * s.area * K1(J, x0, s.center, _k);
     }
     return result;
 }
