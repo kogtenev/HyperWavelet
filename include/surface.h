@@ -18,10 +18,14 @@ struct Rectangle {
 
     Rectangle(const Eigen::Vector3d& a, const Eigen::Vector3d& b, 
               const Eigen::Vector3d& c, const Eigen::Vector3d& d)
-    : a(a), b(b), c(c), d(d), center((a + b + c + d) / 4.), e1(b - a), e2(c - b) {
+    : a(a), b(b), c(c), d(d), center((a + b + c + d) / 4.) {
+        
+        e1 = (c + b) / 2 - center;
+        e2 = (d + c) / 2 - center;
 
         e1 /= e1.norm();
         e2 /= e2.norm();
+
         normal  = e1.cross(e2);
         normal /= normal.norm();
 

@@ -12,11 +12,19 @@ using namespace hyper_wavelet_2d;
 
 using hyper_wavelet::Profiler;
 
-function<Eigen::Vector3d(double, double)> surfaceMap = [](double x, double y) {
+const function<Eigen::Vector3d(double, double)> unitMap = [](double x, double y) {
     Eigen::Vector3d result;
     result[0] = x;
     result[1] = y;
     result[2] = 0.;
+    return result;
+};
+
+const function<Eigen::Vector3d(double, double)> sphereMap = [](double phi, double theta) {
+    Eigen::Vector3d result;
+    result[0] = sin(M_PI * theta) * cos(2 * M_PI * phi);
+    result[1] = sin(M_PI * theta) * sin(2 * M_PI * phi);
+    result[2] = cos(M_PI * theta);
     return result;
 };
 
@@ -41,31 +49,42 @@ const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [](const Eigen::Vec
     return E0; 
 };
 
-void CheckForNanAndInf(const Eigen::MatrixXcd& A) {
-    cout << "Checking system matrix\n";
-    for (int i = 0; i < A.rows(); i++) {
-        for (int j = 0; j < A.cols(); j++) {
-            if (isnan(A(i, j).real()) or isnan(A(i, j).imag())) {
-                throw runtime_error("NAAAAAAAAAAAAAAAAN!");
-            }
-            if (isinf(A(i, j).real()) or isinf(A(i, j).imag())) {
-                throw runtime_error("INF!");
-            }
-        }
-    }
-    cout << "No nans and infs\n";
-}
-
 int main(int argc, char* argv[]) {
+    if (argc < 6) {
+        cout << "Usage: ./ex3 k nx ny threshold surface_type" << endl;
+        return 0;
+    }
+
     const double k = stod(argv[1]);
     const int nx = stoi(argv[2]);
     const int ny = stoi(argv[3]);
     const double threshold = stod(argv[4]);
+    const int surfaceType = stoi(argv[5]);
 
-    cout << "Colocation method for scattering problem on unit rectangle" << endl;
+    function<Eigen::Vector3d(double, double)> surfaceMap;
+    string surfaceName;
+
+    switch (surfaceType) {
+        case 0: 
+            surfaceMap = unitMap; 
+            surfaceName = "square";
+            break;
+        case 1: 
+            surfaceMap = sphereMap;
+            surfaceName = "sphere"; 
+            break;
+        default:
+            cout << "Wrong surface type input!" << endl
+                 << "0 - square, 1 - sphere" << endl;
+            return -1;
+    }
+
+    cout << "Colocation method for scattering problem" << endl;
     cout << "k = "  << k << endl;
     cout << "nx = " << nx << endl;
-    cout << "ny = " << ny << endl << endl;
+    cout << "ny = " << ny << endl;
+    cout << "threshold = " << threshold << endl;
+    cout << "Surface: " << surfaceName << endl << endl;
 
     RectangleSurfaceSolver solver(nx, ny, k, surfaceMap);
     solver.FormFullMatrix();
