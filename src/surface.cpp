@@ -32,10 +32,90 @@ RectangleMesh::RectangleMesh(int nx, int ny,
     }
 }
 
+int ParseIntFromString(std::ifstream& fin, const std::string& prefix) {
+    int result;
+    bool found = false;
+    std::string buffer;
+    while (std::getline(fin, buffer)) {
+        if (buffer.find(prefix) != std::string::npos) {
+            std::stringstream stream(buffer);
+            stream.ignore(prefix.size());
+            stream >> result;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        throw std::runtime_error("Cannot parse mesh file!");
+    }
+    return result;
+}
+
+void SkipHeader(std::ifstream& fin, const std::string& stopLine = "end_header") {
+    bool success = false;
+    std::string buffer;
+    while (std::getline(fin, buffer)) {
+        if (buffer == stopLine) {
+            success = true;
+            break;
+        }
+    }
+    if (!success) {
+        throw std::runtime_error("Cannot skip header!");
+    }
+}
+
+RectangleMesh::RectangleMesh(const std::string& fileName) {
+    std::ifstream fin(fileName, std::ios::in);
+
+    int npoints = ParseIntFromString(fin, "element vertex ");
+    int ncells  = ParseIntFromString(fin, "element face ");
+    SkipHeader(fin);
+
+    std::cout << "Reading mesh\n";
+    std::cout << "Number of vertices: " << npoints << '\n';
+    std::cout << "Number of faces: " << ncells << '\n';
+
+    std::vector<double> coords(3 * npoints);
+    for (int i = 0; i < npoints; ++i) {
+        fin >> coords[3 * i];
+        fin >> coords[3 * i + 1];
+        fin >> coords[3 * i + 2];
+    }
+
+    std::vector<int> faces(4 * ncells);
+    for (int i = 0; i < ncells; ++i) {
+        fin.ignore(256, ' ');
+        fin >> faces[4 * i];
+        fin >> faces[4 * i + 1];
+        fin >> faces[4 * i + 2];
+        fin >> faces[4 * i + 3];
+    }
+
+    _data.resize(ncells);
+    for (int i = 0; i < 4*ncells; i += 4) {
+        Eigen::Vector3d a;
+        a << coords[3*faces[i]],   coords[3*faces[i] + 1],   coords[3*faces[i] + 2];
+
+        Eigen::Vector3d b;
+        b << coords[3*faces[i+1]], coords[3*faces[i+1] + 1], coords[3*faces[i+1] + 2];
+
+        Eigen::Vector3d c;
+        c << coords[3*faces[i+2]], coords[3*faces[i+2] + 1], coords[3*faces[i+2] + 2];
+
+        Eigen::Vector3d d;
+        d << coords[3*faces[i+3]], coords[3*faces[i+3] + 1], coords[3*faces[i+3] + 2];
+
+        _data[i / 4] = Rectangle(a, b, c, d);
+    }
+
+    std::cout << "Mesh is written\n\n";
+}
+
 void PrepareSupports1D(std::vector<Interval>& intervals, int n) {
     intervals.resize(n);
-    intervals[0] = {0., 1};
-    intervals[1] = {0., 1};
+    intervals[0] = {0., 1.};
+    intervals[1] = {0., 1.};
 
     int numOfSupports = 2;
     double h = 0.5;
@@ -139,7 +219,7 @@ inline Eigen::Vector3cd K1(const Eigen::Vector3d& j, const Eigen::Vector3d& x, c
 Eigen::Vector3cd RectangleSurfaceSolver::
 _RegularKernelPart(const Eigen::Vector3d& J, const Rectangle& X, const Rectangle& X0) {
     const Eigen::Vector3d& x0 = X0.center;
-    int levels = PlaneParRectDist(X, X0) /std::sqrt(std::min(X.area, X0.area)) < _adaptation ? _refineLevels : 1;
+    int levels = (x0 - X.center).norm() / std::sqrt(std::min(X.area, X0.area)) < _adaptation ? _refineLevels : 1;
     Eigen::Vector3cd result;
     result.fill({0., 0.});
     const auto& rectangles = RefineRectangle(X, levels);
@@ -213,6 +293,9 @@ RectangleSurfaceSolver::RectangleSurfaceSolver(int nx, int ny, double k,
 
 }
 
+RectangleSurfaceSolver::RectangleSurfaceSolver(double k): 
+    _k(k), _nx(-1), _ny(-1), _eps(1e-3), _adaptation(1e-2) {}
+
 void RectangleSurfaceSolver::FormFullMatrix() {
     std::cout << "Forming full matrix" << std::endl;
     std::cout << "Matrix size: " << _dim << " x " << _dim << std::endl;
@@ -220,6 +303,7 @@ void RectangleSurfaceSolver::FormFullMatrix() {
     _fullMatrix.resize(_dim, _dim);
     const auto& rectangles = _mesh.Data();
     const int n = rectangles.size();
+    #pragma omp parallel for
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
             _fullMatrix.block<2, 2>(2*i, 2*j) = _LocalMatrix(rectangles[j], rectangles[i]);
@@ -447,6 +531,10 @@ void RectangleSurfaceSolver::PrintSolutionVtk(Eigen::VectorXcd x) const {
     HaarInverse2D(E0, _ny, _nx);
     Subvector2D E1(x, _dim / 2, 1);
     HaarInverse2D(E1, _ny, _nx);
+    _printVtk(x);
+}
+
+void RectangleSurfaceSolver::_printVtk(const Eigen::VectorXcd& x) const {
     std::ofstream fout("solution.vtk", std::ios::out);
     fout << "# vtk DataFile Version 3.0\n";
     fout << "Surface electric current\n";
@@ -488,6 +576,11 @@ inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B) {
     const double dx = Distance({A.a[0], A.b[0]}, {B.a[0], B.b[0]});
     const double dy = Distance({A.b[1], A.c[1]}, {B.b[1], B.c[1]});
     return std::sqrt(dx*dx + dy*dy);
+}
+
+SurfaceSolver::SurfaceSolver(double k, const std::string& meshFile): RectangleSurfaceSolver(k) { 
+    _mesh = RectangleMesh(meshFile);
+    _dim = 2 * _mesh.Data().size(); 
 }
 
 }

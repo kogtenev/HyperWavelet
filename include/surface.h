@@ -20,8 +20,8 @@ struct Rectangle {
               const Eigen::Vector3d& c, const Eigen::Vector3d& d)
     : a(a), b(b), c(c), d(d), center((a + b + c + d) / 4.) {
         
-        e1 = (c + b) / 2 - center;
-        e2 = (d + c) / 2 - center;
+        e1 = a - center;
+        e2 = b - center;
 
         e1 /= e1.norm();
         e2 /= e2.norm();
@@ -40,21 +40,32 @@ public:
         int nx, int ny, 
         const std::function<Eigen::Vector3d(double, double)>& surfaceMap);
 
+    RectangleMesh() = default;
+
+    RectangleMesh(const std::string& fileName); 
+
     void HaarTransform();
 
     const std::vector<Rectangle>& Data() const {return _data;};
 
 private:
-    const std::function<Eigen::Vector3d(double, double)> surfaceMap;
     std::vector<Rectangle> _data;
+
+    // for rectangle surface solver 
+    std::function<Eigen::Vector3d(double, double)> surfaceMap;
     int _nx;
     int _ny;
+
+    // for general case
+    std::vector<std::pair<int, int>> _graphEdges;
 }; 
 
 class RectangleSurfaceSolver {
 public:
     RectangleSurfaceSolver(int nx, int ny, double k, 
         const std::function<Eigen::Vector3d(double, double)>& surfaceMap);
+
+    RectangleSurfaceSolver(double k);
 
     void FormFullMatrix();
     void FormTruncatedMatrix(double threshold, bool print = true);
@@ -73,11 +84,10 @@ public:
     void PrintFullMatrix(const std::string& file) const;
     void PrintSolutionVtk(Eigen::VectorXcd x) const;
 
-private:
+protected:
     const double _k;
-    const int _dim;
-    const int _nx, _ny;
-    RectangleMesh _mesh, _unitMesh;
+    int _dim;
+    RectangleMesh _mesh;
     Eigen::MatrixXcd _fullMatrix;
     Eigen::SparseMatrix<std::complex<double>> _truncMatrix;
     Eigen::VectorXcd _rhs;
@@ -87,14 +97,32 @@ private:
     const double _adaptation;
 
     inline double _Smooth(double r) const;
-    void _printTruncMatrix();
-    void _formBlockCol(Eigen::MatrixXcd& col, int j);
+    void _printVtk(const Eigen::VectorXcd& x) const;
     Eigen::Vector3cd _RegularKernelPart(const Eigen::Vector3d& j, const Rectangle& X, const Rectangle& X0);
     Eigen::Vector3cd _MainKernelPart(const Eigen::Vector3d& a, const Eigen::Vector3d& b, const Eigen::Vector3d& x);
     Eigen::Matrix2cd _LocalMatrix(const Rectangle& X, const Rectangle& X0);
     Eigen::Matrix2cd _RegularPart(const Rectangle& X, const Rectangle& X0);
+
+private:
+    const int _nx, _ny;
+    RectangleMesh _unitMesh;
+
+    void _formBlockCol(Eigen::MatrixXcd& col, int j);
 };
 
 inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B);
+
+class SurfaceSolver: RectangleSurfaceSolver {
+public:
+    using RectangleSurfaceSolver::FormFullMatrix;
+    using RectangleSurfaceSolver::FormRhs;
+    using RectangleSurfaceSolver::GetFullMatrix;
+    using RectangleSurfaceSolver::GetTruncatedMatrix;
+    using RectangleSurfaceSolver::GetRhs;
+    using RectangleSurfaceSolver::PrintFullMatrix;
+
+    SurfaceSolver(double k, const std::string& meshFile);
+    void PrintSolutionVtk(Eigen::VectorXcd x) { _printVtk(x); }
+};
 
 }
