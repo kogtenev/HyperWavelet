@@ -83,6 +83,7 @@ public:
     void PlotSolutionMap(Eigen::VectorXcd x) const;
     void PrintFullMatrix(const std::string& file) const;
     void PrintSolutionVtk(Eigen::VectorXcd x) const;
+    void PrintEsa(const Eigen::VectorXcd& x) const;
 
 protected:
     const double _k;
@@ -108,6 +109,7 @@ private:
     RectangleMesh _unitMesh;
 
     void _formBlockCol(Eigen::MatrixXcd& col, int j);
+    double _CalcEsa(const Eigen::VectorXcd& x, double phi) const;
 };
 
 inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B);
@@ -126,7 +128,7 @@ public:
     void PrintEsa(const Eigen::VectorXcd& x) const;
 
 private:
-    double CalcEsa(const Eigen::VectorXcd& x, double phi) const;
+    double _CalcEsa(const Eigen::VectorXcd& x, double phi) const;
 };
 
 }

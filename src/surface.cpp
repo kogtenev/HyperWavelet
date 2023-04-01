@@ -545,6 +545,15 @@ void RectangleSurfaceSolver::PrintSolutionVtk(Eigen::VectorXcd x) const {
     _printVtk(x);
 }
 
+void RectangleSurfaceSolver::PrintEsa(const Eigen::VectorXcd& x) const {
+    const int N = 360;
+    std::ofstream fout("esa.txt", std::ios::out);
+    for (int i = 0; i < N; ++i) {
+        fout << _CalcEsa(x, 2 * M_PI * i / N) << '\n';
+    }
+    fout.close();
+}
+
 void RectangleSurfaceSolver::_printVtk(const Eigen::VectorXcd& x) const {
     std::ofstream fout("solution.vtk", std::ios::out);
     fout << "# vtk DataFile Version 3.0\n";
@@ -583,6 +592,27 @@ void RectangleSurfaceSolver::_printVtk(const Eigen::VectorXcd& x) const {
     fout.close();
 }
 
+double RectangleSurfaceSolver::_CalcEsa(const Eigen::VectorXcd& x, double phi) const {
+    Eigen::Vector3d tau;
+    tau << 0, std::cos(phi), std::sin(phi);
+    const double c = 3e8;
+    const double eps = 8.85e-12;
+    int i = 0;
+    Eigen::Vector3cd sigma;
+    sigma << 0., 0., 0.;
+    for (const auto& rectangle: _mesh.Data()) {
+        Eigen::Vector3cd J = x[2*i]*rectangle.e1.cast<complex>() + x[2*i+1]*rectangle.e2.cast<complex>();
+        J = rectangle.normal.cast<complex>().cross(J).cross(rectangle.normal.cast<complex>());
+        const auto& y = rectangle.center;
+        const double ds = rectangle.area;
+        sigma += std::exp(-1i*_k*tau.dot(y)) * 1i * _k / c / eps * ds * 
+            (J - J.dot(tau.cast<complex>()) * tau.cast<complex>());
+        i++;
+    }
+    return 10. * std::log10(4 * M_PI * sigma.norm() * sigma.norm());
+}
+
+
 inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B) {
     const double dx = Distance({A.a[0], A.b[0]}, {B.a[0], B.b[0]});
     const double dy = Distance({A.b[1], A.c[1]}, {B.b[1], B.c[1]});
@@ -598,16 +628,16 @@ void SurfaceSolver::PrintEsa(const Eigen::VectorXcd& x) const {
     const int N = 360;
     std::ofstream fout("esa.txt", std::ios::out);
     for (int i = 0; i < N; ++i) {
-        fout << CalcEsa(x, 2 * M_PI * i / N) << '\n';
+        fout << _CalcEsa(x, 2 * M_PI * i / N) << '\n';
     }
     fout.close();
 }
 
-double SurfaceSolver::CalcEsa(const Eigen::VectorXcd& x, double phi) const {
+double SurfaceSolver::_CalcEsa(const Eigen::VectorXcd& x, double phi) const {
     Eigen::Vector3d tau;
     tau << std::cos(phi), std::sin(phi), 0.;
     const double c = 3e8;
-    const double eps = 1;//8.85e-12;
+    const double eps = 8.85e-12;
     int i = 0;
     Eigen::Vector3cd sigma;
     sigma << 0., 0., 0.;
