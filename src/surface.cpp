@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <complex>
 
 #include "surface.h"
 #include "helpers.h"
@@ -12,6 +13,8 @@ using complex = std::complex<double>;
 using hyper_wavelet::Profiler;
 using hyper_wavelet::Interval;
 using hyper_wavelet::Distance;
+
+using namespace std::complex_literals;
 
 namespace hyper_wavelet_2d {
 
@@ -237,10 +240,18 @@ Eigen::Matrix2cd RectangleSurfaceSolver::_LocalMatrix(const Rectangle& X, const 
     const Eigen::Vector3cd I_cd = _MainKernelPart(X.c, X.d, X0.center);
     const Eigen::Vector3cd I_da = _MainKernelPart(X.d, X.a, X0.center);
 
-    Eigen::Vector3d t_ab = (X.b - X.a); t_ab /= t_ab.norm(); 
-    Eigen::Vector3d t_bc = (X.c - X.b); t_bc /= t_bc.norm();
-    Eigen::Vector3d t_cd = (X.d - X.c); t_cd /= t_cd.norm(); 
-    Eigen::Vector3d t_da = (X.a - X.d); t_da /= t_da.norm();    
+    double scale;
+    Eigen::Vector3d t_ab = (X.b - X.a); scale = t_ab.norm();
+    t_ab /= (scale > 0.) ? scale : 1;
+
+    Eigen::Vector3d t_bc = (X.c - X.b); scale = t_bc.norm();
+    t_bc /= (scale > 0.) ? scale : 1; 
+
+    Eigen::Vector3d t_cd = (X.d - X.c); scale = t_cd.norm(); 
+    t_cd /= (scale > 0.) ? scale : 1; 
+
+    Eigen::Vector3d t_da = (X.a - X.d); scale = t_da.norm();
+    t_da /= (scale > 0.) ? scale : 1;    
 
     Eigen::Vector3cd Ke1 = X.e1.cross(X.normal).dot(t_ab) * I_ab;
     Ke1 += X.e1.cross(X.normal).dot(t_bc) * I_bc;
@@ -288,7 +299,7 @@ void RectangleSurfaceSolver::_formBlockCol(Eigen::MatrixXcd& blockCol, int j) {
 RectangleSurfaceSolver::RectangleSurfaceSolver(int nx, int ny, double k, 
     const std::function<Eigen::Vector3d(double, double)>& surfaceMap
 ): _mesh(nx, ny, surfaceMap), _unitMesh(nx, ny, _unitMap), 
-   _k(k), _nx(nx), _ny(ny), _dim(2*nx*ny), _eps(2./std::sqrt(nx*ny)),
+   _k(k), _nx(nx), _ny(ny), _dim(2*nx*ny), _eps(1./std::sqrt(nx*ny)/4),
    _adaptation(std::log2(1.*nx*ny)) {
 
 }
@@ -581,6 +592,35 @@ inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B) {
 SurfaceSolver::SurfaceSolver(double k, const std::string& meshFile): RectangleSurfaceSolver(k) { 
     _mesh = RectangleMesh(meshFile);
     _dim = 2 * _mesh.Data().size(); 
+}
+
+void SurfaceSolver::PrintEsa(const Eigen::VectorXcd& x) const {
+    const int N = 360;
+    std::ofstream fout("esa.txt", std::ios::out);
+    for (int i = 0; i < N; ++i) {
+        fout << CalcEsa(x, 2 * M_PI * i / N) << '\n';
+    }
+    fout.close();
+}
+
+double SurfaceSolver::CalcEsa(const Eigen::VectorXcd& x, double phi) const {
+    Eigen::Vector3d tau;
+    tau << std::cos(phi), std::sin(phi), 0.;
+    const double c = 3e8;
+    const double eps = 1;//8.85e-12;
+    int i = 0;
+    Eigen::Vector3cd sigma;
+    sigma << 0., 0., 0.;
+    for (const auto& rectangle: _mesh.Data()) {
+        Eigen::Vector3cd J = x[2*i]*rectangle.e1.cast<complex>() + x[2*i+1]*rectangle.e2.cast<complex>();
+        J = rectangle.normal.cast<complex>().cross(J).cross(rectangle.normal.cast<complex>());
+        const auto& y = rectangle.center;
+        const double ds = rectangle.area;
+        sigma += std::exp(-1i*_k*tau.dot(y)) * 1i * _k / c / eps * ds * 
+            (J - J.dot(tau.cast<complex>()) * tau.cast<complex>());
+        i++;
+    }
+    return 10. * std::log10(4 * M_PI * sigma.norm() * sigma.norm());
 }
 
 }

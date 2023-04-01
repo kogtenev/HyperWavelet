@@ -123,6 +123,10 @@ public:
 
     SurfaceSolver(double k, const std::string& meshFile);
     void PrintSolutionVtk(Eigen::VectorXcd x) { _printVtk(x); }
+    void PrintEsa(const Eigen::VectorXcd& x) const;
+
+private:
+    double CalcEsa(const Eigen::VectorXcd& x, double phi) const;
 };
 
 }

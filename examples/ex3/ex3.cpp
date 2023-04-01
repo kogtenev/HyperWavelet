@@ -28,27 +28,6 @@ const function<Eigen::Vector3d(double, double)> sphereMap = [](double phi, doubl
     return result;
 };
 
-const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [](const Eigen::Vector3d& r) {
-    const complex<double> zero = {0., 0.};
-    const complex<double> one = {1., 0.};
-    const complex<double> i = {0., 1.};
-
-    Eigen::Vector3cd k;
-    Eigen::Vector3cd E0;
-
-    k[0] = zero;
-    k[1] = zero;
-    k[2] = one;
-
-    E0[0] = zero;
-    E0[1] = one;
-    E0[2] = zero;
-
-    E0 *= exp(i * k.dot(r.cast<complex<double>>()));
-
-    return E0; 
-};
-
 int main(int argc, char* argv[]) {
     if (argc < 6) {
         cout << "Usage: ./ex3 k nx ny threshold surface_type" << endl;
@@ -85,6 +64,15 @@ int main(int argc, char* argv[]) {
     cout << "ny = " << ny << endl;
     cout << "threshold = " << threshold << endl;
     cout << "Surface: " << surfaceName << endl << endl;
+
+    const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [&k](const Eigen::Vector3d& r) {
+        const complex<double> i = {0., 1.};
+        Eigen::Vector3cd _k, E0;
+        _k << 0., 0., k;
+        E0 << 0., 1., 0.;
+        E0 *= exp(i * _k.dot(r.cast<complex<double>>()));
+        return E0; 
+    };
 
     RectangleSurfaceSolver solver(nx, ny, k, surfaceMap);
     solver.FormFullMatrix();

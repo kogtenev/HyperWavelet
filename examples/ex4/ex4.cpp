@@ -25,27 +25,6 @@ function<Eigen::Vector3d(double, double)> surfaceMap = [](double x, double y) {
     return result;
 };
 
-const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [](const Eigen::Vector3d& r) {
-    const complex<double> zero = {0., 0.};
-    const complex<double> one = {1., 0.};
-    const complex<double> i = {0., 1.};
-
-    Eigen::Vector3cd k;
-    Eigen::Vector3cd E0;
-
-    k[0] = zero;
-    k[1] = zero;
-    k[2] = one;
-
-    E0[0] = zero;
-    E0[1] = one;
-    E0[2] = zero;
-
-    E0 *= exp(i * k.dot(r.cast<complex<double>>()));
-
-    return E0; 
-};
-
 static char petsc_magic[] = "Appends to an ASCII file.\n\n";
 
 int main(int argc, char* argv[]) {
@@ -61,6 +40,15 @@ int main(int argc, char* argv[]) {
     cout << "nx = " << nx << endl;
     cout << "ny = " << ny << endl << endl;
 
+    const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [&k](const Eigen::Vector3d& r) {
+        const complex<double> i = {0., 1.};
+        Eigen::Vector3cd _k, E0;
+        _k << 0., 0., k;
+        E0 << 0., 1., 0.;
+        E0 *= exp(i * _k.dot(r.cast<complex<double>>()));
+        return E0; 
+    };
+
     RectangleSurfaceSolver solver(nx, ny, k, surfaceMap);
     solver.FormMatrixCompressed(threshold);
     solver.FormRhs(f);
@@ -75,9 +63,13 @@ int main(int argc, char* argv[]) {
     Profiler profiler;
     //Eigen::SparseLU<Eigen::SparseMatrix<complex<double>>> lu(truncA);
     //Eigen::VectorXcd x = lu.solve(rhs);
-    //Eigen::GMRES<SparseMatrix, Eigen::IncompleteLUT<complex<double>>> gmres(truncA);
-    //gmres.setTolerance(1e-8);
-    //gmres.setMaxIterations(nx * nx);
+    //Eigen::GMRES<SparseMatrix, Eigen::IncompleteLUT<complex<double>>> gmres;
+    //gmres.preconditioner().setFillfactor(3);
+    //gmres.preconditioner().setDroptol(1e-8);
+    /*gmres.setTolerance(1e-8);
+    gmres.set_restart(80);
+    gmres.setMaxIterations(500);*/
+    //gmres.compute(truncA);
     PETSC::PGMRES gmres(truncA);
     Eigen::VectorXcd x = gmres.Solve(rhs);
     Eigen::VectorXcd res = (truncA * x - rhs);
@@ -85,11 +77,11 @@ int main(int argc, char* argv[]) {
     cout << "Relative residual: " << res.norm() / rhs.norm() << endl;
     cout << "Time for solution: " << profiler.Toc() << " s." << endl;
 
-    solver.PlotSolutionMap(x);
+    //solver.PlotSolutionMap(x);
     solver.PrintSolutionVtk(x);
     cout << "Done" << endl;
     
-    PetscFinalize();
+    //PetscFinalize();
 
     return 0;
 }

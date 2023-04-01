@@ -48,7 +48,7 @@ private:
 
     KSPConvergedReason reason;
     PetscReal rtol = 1e-6, atol = 1e-6;
-    PetscInt maxits = 200;
+    PetscInt maxits = 500;
 
 public:
     PGMRES(const Eigen::SparseMatrix<DataType>& A): nnz(A.nonZeros()), dim(A.rows()) {
@@ -84,12 +84,18 @@ public:
         KSPSetOperators(solver, mat, mat);
         KSPSetType(solver, KSPGMRES);
         KSPSetInitialGuessNonzero(solver, PETSC_FALSE);
+        KSPGMRESSetRestart(solver, 60);
 
         KSPSetNormType(solver, KSP_NORM_UNPRECONDITIONED);
         KSPSetTolerances(solver, atol, rtol, PETSC_DEFAULT, maxits);
 
         KSPGetPC(solver, &prec);
         PCSetType(prec, PCILU);
+        //PCFactorSetDropTolerance(prec, 1e-5, 0.01, 800);
+        //PCFactorSetFill(prec, 10.);
+        PCFactorSetLevels(prec, 2);
+        PCFactorSetMatOrderingType(prec, MATORDERINGQMD);
+
 
         KSPSetFromOptions(solver);
         KSPSetUp(solver);
@@ -131,9 +137,14 @@ public:
         PetscReal residual;
         PetscReal rhsnorm;
 
+        MatInfo info;
+
         KSPGetIterationNumber(solver, &iterations);
         KSPGetResidualNorm(solver, &residual);
+        MatGetInfo(pmat, MAT_LOCAL, &info);
         VecNorm(bcopy, NORM_2, &rhsnorm);
+
+        std::cout << "Fill ratio for ilu: " << info.fill_ratio_needed << std::endl;
         std::cout << "Iterations: " << iterations << std::endl;
         std::cout << "Relative residual: " << residual / rhsnorm << std::endl << std::endl;
 
