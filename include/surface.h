@@ -20,8 +20,8 @@ struct Rectangle {
               const Eigen::Vector3d& c, const Eigen::Vector3d& d)
     : a(a), b(b), c(c), d(d), center((a + b + c + d) / 4.) {
         
-        e1 = a - center;
-        e2 = b - center;
+        e1 = b - a;
+        e2 = d - a;
 
         e1 /= e1.norm();
         e2 /= e2.norm();

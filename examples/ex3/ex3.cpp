@@ -20,11 +20,11 @@ const function<Eigen::Vector3d(double, double)> unitMap = [](double x, double y)
     return result;
 };
 
-const function<Eigen::Vector3d(double, double)> sphereMap = [](double phi, double theta) {
+const function<Eigen::Vector3d(double, double)> cylinderMap = [](double phi, double l) {
     Eigen::Vector3d result;
-    result[0] = sin(M_PI * theta) * cos(2 * M_PI * phi);
-    result[1] = sin(M_PI * theta) * sin(2 * M_PI * phi);
-    result[2] = cos(M_PI * theta);
+    result[0] = -0.1 + 0.2*l;
+    result[1] =  0.1 * cos(2 * M_PI * phi);
+    result[1] =  0.1 * sin(2 * M_PI * phi);
     return result;
 };
 
@@ -49,12 +49,12 @@ int main(int argc, char* argv[]) {
             surfaceName = "square";
             break;
         case 1: 
-            surfaceMap = sphereMap;
-            surfaceName = "sphere"; 
+            surfaceMap = cylinderMap;
+            surfaceName = "cylinder"; 
             break;
         default:
             cout << "Wrong surface type input!" << endl
-                 << "0 - square, 1 - sphere" << endl;
+                 << "0 - square, 1 - cylinder" << endl;
             return -1;
     }
 
@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
     cout << "Relative error: " << (_x - x).norm() / x.norm() << endl << endl;
 
     solver.PlotSolutionMap(_x);
-    solver.PrintSolutionVtk(x);
+    solver.PrintSolutionVtk(_x);
     solver.PrintEsa(x);
     cout << "Done" << endl;
     
