@@ -4,6 +4,8 @@
 #include <vector>
 #include <complex>
 
+#include "metis.h"
+
 #include "surface.h"
 #include "helpers.h"
 #include "Haar.h"
