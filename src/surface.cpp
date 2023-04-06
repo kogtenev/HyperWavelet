@@ -148,6 +148,63 @@ void RenumberVertices(
     }
 }
 
+int GetDiameter(const std::vector<int>& barriers) {
+    int result = 0;
+    for (int i = 0; i < barriers.size() - 1; ++i) {
+        if (barriers[i+1] - barriers[i] > result) {
+            result = barriers[i+1] - barriers[i];
+        }
+    }
+    return result;
+}
+
+void Call_METIS(
+    const std::vector<idx_t>& csr_starts, 
+    const std::vector<idx_t>& csr_list, 
+    std::vector<idx_t>& partition) {
+
+    idx_t nvtxs = csr_starts.size(), ncon = 1, nparts = 2, objval;
+    int errcode = METIS_PartGraphRecursive(&nvtxs, &ncon, (idx_t*)csr_starts.data(), (idx_t*)csr_list.data(), 
+                            NULL, NULL, NULL, &nparts, NULL, NULL, NULL, &objval, (idx_t*)partition.data());
+
+    switch(errcode) {
+        case METIS_OK: break;
+        case METIS_ERROR_INPUT:
+            std::cout << "METIS error input!\n";
+            break;
+        case METIS_ERROR_MEMORY:
+            std::cout << "METIS error memory!\n";
+            break;
+        case METIS_ERROR:
+            std::cout << "Unknown METIS error!\n";
+            break;
+        default:
+            std::cout << "Starnge METIS output!\n";
+    }
+}
+
+void PrintSubmesh(const std::vector<Rectangle>& rectangles, 
+        int start, int finish, const std::string& fileName) {
+
+    std::ofstream fout(fileName, std::ios::out);
+    fout << "# vtk DataFile Version 3.0\n";
+    fout << "Wavelet submesh\n";
+    fout << "ASCII\n";
+    fout << "DATASET POLYDATA\n";
+    const int npoints = (finish - start) * 4;
+    const int ncells  = finish - start;
+    fout << "POINTS " << npoints << " double\n";
+    for (int i = start; i < finish; ++i) {
+        fout << rectangles[i].a << '\n' << rectangles[i].b << '\n' 
+             << rectangles[i].c << '\n' << rectangles[i].d << '\n';
+    }
+    fout << "POLYGONS " << ncells << ' ' << 5 * ncells << '\n';
+    for (int i = 0; i < npoints; i += 4) {
+        fout << "4 " << i << ' ' << i+1 << ' ' << i+2 << ' ' << i+3 << '\n';
+    }
+    fout.close();
+}
+
 RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& graphFile) {
     std::ifstream fin(meshFile, std::ios::in);
 
@@ -222,26 +279,51 @@ void RectangleMesh::FormWaveletMatrix() {
     
     std::vector<idx_t> csr_starts, csr_list;
     std::vector<int> barriers = {0, nvertices};
+    int row = 1;
 
-    while (diameter > 3) {
+    while (diameter > 1) {
         std::vector<std::pair<int, int>> new_edges;
         std::vector<int> mesh_pivoting(nvertices);
         std::vector<int> new_barriers;
         for (int i = 0; i < barriers.size() - 1; ++i) {
+            if (barriers[i+1] - barriers[i] < 2) {
+                continue;
+            }
+
             GraphEdgesToCsr(csr_starts, csr_list, barriers[i], barriers[i+1], _graphEdges);
             std::vector<idx_t> partition(barriers[i+1] - barriers[i]);
-            // CALL METIS
+            
+            Call_METIS(csr_starts, csr_list, partition);
+            
             const auto& local_edges = CleanEdgesList(_graphEdges, barriers[i], barriers[i+1], partition);
             new_edges.insert(new_edges.end(), local_edges.begin(), local_edges.end());
+
             int median = GetMeshPivotingAndMedian(_data, mesh_pivoting, barriers[i], barriers[i+1], partition);
+            
             new_barriers.push_back(barriers[i]);
             new_barriers.push_back(barriers[i] + median);
             new_barriers.push_back(barriers[i+1]);
+            
+            _wmatrix.starts[row] = barriers[i];
+            _wmatrix.medians[row] = barriers[i] + median;
+            _wmatrix.ends[row] = barriers[i+1];
+            
+            ++row;
         }
         RenumberVertices(new_edges, mesh_pivoting);
         _graphEdges = std::move(new_edges);
         barriers = std::move(new_barriers);
+        diameter = GetDiameter(barriers);
     }
+
+    if (row != nvertices) {
+        throw std::runtime_error("Cannot prepare wavelet matrix!");
+    }
+
+    PrintSubmesh(_data, _wmatrix.starts[2], _wmatrix.ends[2], "submesh2.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[3], _wmatrix.ends[3], "submesh3.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[4], _wmatrix.ends[4], "submesh4.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[6], _wmatrix.ends[6], "submesh6.vtk");
 }
 
 void PrepareSupports1D(std::vector<Interval>& intervals, int n) {

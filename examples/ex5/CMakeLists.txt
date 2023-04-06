@@ -1,0 +1,6 @@
+add_executable(ex5 ex5.cpp)
+find_package(PkgConfig REQUIRED)
+pkg_search_module(PETSC REQUIRED IMPORTED_TARGET PETSc)
+add_link_options(-lpthread -openmp)
+target_link_libraries(ex5 hyperwavelet PkgConfig::PETSC ~/local/lib/libmetis.so libGKlib.a)
+install(TARGETS ex5 DESTINATION /home/dmitriy/HyperWavelet/examples/ex5/)

@@ -1,0 +1,6 @@
+add_executable(ex4 ex4.cpp)
+find_package(PkgConfig REQUIRED)
+pkg_search_module(PETSC REQUIRED IMPORTED_TARGET PETSc)
+add_link_options(-lpthread -openmp)
+target_link_libraries(ex4 hyperwavelet PkgConfig::PETSC ~/local/lib/libmetis.so libGKlib.a)
+install(TARGETS ex4 DESTINATION /home/dmitriy/HyperWavelet/examples/ex4/)

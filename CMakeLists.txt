@@ -12,7 +12,7 @@ include_directories(/usr/include/eigen3)
 include_directories(~/local/include)
 
 add_compile_options(-O3 -std=c++17 -fopenmp)
-add_link_options(-lpthread -fopenmp -lmetis)
+add_link_options(-lpthread -fopenmp)
 
 add_subdirectory(src)
 add_subdirectory(examples)
