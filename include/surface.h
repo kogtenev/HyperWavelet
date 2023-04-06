@@ -35,6 +35,12 @@ struct Rectangle {
     }
 };
 
+struct WaveletMatrix {
+    std::vector<int> starts;
+    std::vector<int> medians;
+    std::vector<int> ends;
+};
+
 class RectangleMesh {
 public:
     RectangleMesh(
@@ -47,7 +53,10 @@ public:
 
     void HaarTransform();
 
+    void FormWaveletMatrix();
+
     const std::vector<Rectangle>& Data() const {return _data;};
+    const WaveletMatrix& GetWaveletMatrix() const {return _wmatrix;};
 
 private:
     std::vector<Rectangle> _data;
@@ -59,8 +68,7 @@ private:
 
     // for mesh graph in general case
     std::vector<std::pair<int, int>> _graphEdges;
-    std::vector<idx_t> _csrStarts;
-    std::vector<idx_t> _csrList; 
+    WaveletMatrix _wmatrix; 
 }; 
 
 class RectangleSurfaceSolver {

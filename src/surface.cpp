@@ -70,6 +70,84 @@ void SkipHeader(std::ifstream& fin, const std::string& stopLine = "end_header") 
     }
 }
 
+void GraphEdgesToCsr(
+    std::vector<idx_t>& csr_starts, 
+    std::vector<idx_t>& csr_list,
+    int start, int finish, 
+    const std::vector<std::pair<int, int>>& edges) {
+
+    int nvertices = start - finish;
+    csr_starts.resize(nvertices);
+    csr_list.reserve(4 * nvertices);
+    int j = 0;
+    for (int i = start; i < finish; ++i) {
+        int vertex_pow = 0;
+        while (edges[j].first == i) {
+            csr_list.push_back(edges[j].second);
+            ++j;
+            ++vertex_pow;
+        }
+        csr_starts[i] = vertex_pow;
+    }
+}
+
+std::vector<std::pair<int, int>> CleanEdgesList(
+    const std::vector<std::pair<int, int>>& edges, 
+    int start, int finish, 
+    const std::vector<idx_t>& partition) {
+
+    std::vector<std::pair<int, int>> result;
+    for (int i = start; i < finish; ++i) {  
+        if (partition[edges[i].first]== partition[edges[i].second]) {
+            result.push_back(edges[i]);
+        }
+    }
+    return result;
+}
+
+int GetMeshPivotingAndMedian(
+    std::vector<Rectangle>& rectangles,
+    std::vector<int>& mesh_pivoting, 
+    int start, int finish,
+    const std::vector<int>& partition) {
+    
+    int n = finish - start;
+    std::vector<int> result(n);
+    std::vector<Rectangle> new_rectangles(n);
+    int second_group_start = 0;
+    for (int p: partition) {
+        if (p == 2) {
+            ++second_group_start;
+        }
+    }
+    int first_counts = 0, second_counts = 0;
+    for (int i = 0; i < n; ++i) {
+        if (partition[i] == 1) {
+            new_rectangles[first_counts] = rectangles[start + i];
+            mesh_pivoting[start + i] = first_counts;
+            ++first_counts;
+        } else {
+            new_rectangles[second_group_start + second_counts] = rectangles[start + i];
+            mesh_pivoting[start + i] = second_group_start + second_counts;
+            ++second_counts;
+        }
+    }
+    for (int i = 0; i < n; ++i) {
+        rectangles[start + i] = new_rectangles[i];
+    }
+    return first_counts;
+}
+
+void RenumberVertices(
+    std::vector<std::pair<int, int>>& edges,
+    const std::vector<int>& mesh_pivoting) {
+
+    for (int i = 0; i < edges.size(); ++i) {
+        edges[i].first = mesh_pivoting[edges[i].first];
+        edges[i].second = mesh_pivoting[edges[i].second];
+    }
+}
+
 RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& graphFile) {
     std::ifstream fin(meshFile, std::ios::in);
 
@@ -126,17 +204,43 @@ RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& gra
             stream >> i >> j;
             _graphEdges.push_back({i, j});
         }
-        _csrStarts.resize(ncells);
-        _csrList.reserve(4 * ncells);
-        int j = 0;
-        std::cout << "Preparing graph CSR-structure\n";
-        for (int i = 0; i < ncells; ++i) {
-            while (_graphEdges[j].first == i) {
-                _csrList.push_back(_graphEdges[j].second);
-                ++j;
-            }
-        }
         std::cout << "Mesh graph is ready\n\n";
+    }
+}
+
+void RectangleMesh::FormWaveletMatrix() {
+    int nvertices = _data.size();
+    int diameter = nvertices;
+
+    _wmatrix.starts.resize(nvertices);
+    _wmatrix.medians.resize(nvertices);
+    _wmatrix.ends.resize(nvertices);
+
+    _wmatrix.starts[0] = 0;
+    _wmatrix.medians[0] = nvertices;
+    _wmatrix.ends[0] = nvertices;
+    
+    std::vector<idx_t> csr_starts, csr_list;
+    std::vector<int> barriers = {0, nvertices};
+
+    while (diameter > 3) {
+        std::vector<std::pair<int, int>> new_edges;
+        std::vector<int> mesh_pivoting(nvertices);
+        std::vector<int> new_barriers;
+        for (int i = 0; i < barriers.size() - 1; ++i) {
+            GraphEdgesToCsr(csr_starts, csr_list, barriers[i], barriers[i+1], _graphEdges);
+            std::vector<idx_t> partition(barriers[i+1] - barriers[i]);
+            // CALL METIS
+            const auto& local_edges = CleanEdgesList(_graphEdges, barriers[i], barriers[i+1], partition);
+            new_edges.insert(new_edges.end(), local_edges.begin(), local_edges.end());
+            int median = GetMeshPivotingAndMedian(_data, mesh_pivoting, barriers[i], barriers[i+1], partition);
+            new_barriers.push_back(barriers[i]);
+            new_barriers.push_back(barriers[i] + median);
+            new_barriers.push_back(barriers[i+1]);
+        }
+        RenumberVertices(new_edges, mesh_pivoting);
+        _graphEdges = std::move(new_edges);
+        barriers = std::move(new_barriers);
     }
 }
 
