@@ -2,6 +2,7 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
+#include "metis.h"
 
 namespace hyper_wavelet_2d {
 
@@ -42,7 +43,7 @@ public:
 
     RectangleMesh() = default;
 
-    RectangleMesh(const std::string& fileName); 
+    RectangleMesh(const std::string& meshFile, const std::string& graphFile = ""); 
 
     void HaarTransform();
 
@@ -56,8 +57,10 @@ private:
     int _nx;
     int _ny;
 
-    // for general case
+    // for mesh graph in general case
     std::vector<std::pair<int, int>> _graphEdges;
+    std::vector<idx_t> _csrStarts;
+    std::vector<idx_t> _csrList; 
 }; 
 
 class RectangleSurfaceSolver {
@@ -123,7 +126,7 @@ public:
     using RectangleSurfaceSolver::GetRhs;
     using RectangleSurfaceSolver::PrintFullMatrix;
 
-    SurfaceSolver(double k, const std::string& meshFile);
+    SurfaceSolver(double k, const std::string& meshFile, const std::string& graphFile = "");
     void PrintSolutionVtk(Eigen::VectorXcd x) { _printVtk(x); }
     void PrintEsa(const Eigen::VectorXcd& x) const;
 

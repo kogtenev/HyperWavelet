@@ -70,8 +70,8 @@ void SkipHeader(std::ifstream& fin, const std::string& stopLine = "end_header") 
     }
 }
 
-RectangleMesh::RectangleMesh(const std::string& fileName) {
-    std::ifstream fin(fileName, std::ios::in);
+RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& graphFile) {
+    std::ifstream fin(meshFile, std::ios::in);
 
     int npoints = ParseIntFromString(fin, "element vertex ");
     int ncells  = ParseIntFromString(fin, "element face ");
@@ -96,6 +96,7 @@ RectangleMesh::RectangleMesh(const std::string& fileName) {
         fin >> faces[4 * i + 2];
         fin >> faces[4 * i + 3];
     }
+    fin.close();
 
     _data.resize(ncells);
     for (int i = 0; i < 4*ncells; i += 4) {
@@ -113,8 +114,30 @@ RectangleMesh::RectangleMesh(const std::string& fileName) {
 
         _data[i / 4] = Rectangle(a, b, c, d);
     }
+    std::cout << "Mesh is written\n";
 
-    std::cout << "Mesh is written\n\n";
+    if (graphFile.size()) {
+        std::cout << "Reading mesh dual graph\n";
+        std::string buffer;
+        fin.open(graphFile, std::ios::in);
+        while (std::getline(fin, buffer)) {
+            std::stringstream stream(buffer);
+            int i, j;
+            stream >> i >> j;
+            _graphEdges.push_back({i, j});
+        }
+        _csrStarts.resize(ncells);
+        _csrList.reserve(4 * ncells);
+        int j = 0;
+        std::cout << "Preparing graph CSR-structure\n";
+        for (int i = 0; i < ncells; ++i) {
+            while (_graphEdges[j].first == i) {
+                _csrList.push_back(_graphEdges[j].second);
+                ++j;
+            }
+        }
+        std::cout << "Mesh graph is ready\n\n";
+    }
 }
 
 void PrepareSupports1D(std::vector<Interval>& intervals, int n) {
@@ -621,8 +644,13 @@ inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B) {
     return std::sqrt(dx*dx + dy*dy);
 }
 
-SurfaceSolver::SurfaceSolver(double k, const std::string& meshFile): RectangleSurfaceSolver(k) { 
-    _mesh = RectangleMesh(meshFile);
+SurfaceSolver::SurfaceSolver(
+    double k, 
+    const std::string& meshFile, 
+    const std::string& graphFile
+): RectangleSurfaceSolver(k) {
+
+    _mesh = RectangleMesh(meshFile, graphFile);
     _dim = 2 * _mesh.Data().size(); 
 }
 
