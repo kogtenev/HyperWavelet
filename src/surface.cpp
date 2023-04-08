@@ -71,23 +71,18 @@ void SkipHeader(std::ifstream& fin, const std::string& stopLine = "end_header") 
 }
 
 void GraphEdgesToCsr(
-    std::vector<idx_t>& csr_starts, 
-    std::vector<idx_t>& csr_list,
+    const std::vector<std::pair<int, int>>& edges,
     int start, int finish, 
-    const std::vector<std::pair<int, int>>& edges) {
+    std::vector<idx_t>& csr_starts, 
+    std::vector<idx_t>& csr_list) {
 
-    int nvertices = start - finish;
-    csr_starts.resize(nvertices);
-    csr_list.reserve(4 * nvertices);
-    int j = 0;
-    for (int i = start; i < finish; ++i) {
-        int vertex_pow = 0;
-        while (edges[j].first == i) {
-            csr_list.push_back(edges[j].second);
-            ++j;
-            ++vertex_pow;
-        }
-        csr_starts[i] = vertex_pow;
+    int nedges = finish - start;
+    csr_list.reserve(nedges);
+    int pos = 1;
+    for (int n = start; n < finish; ++n) {
+        csr_starts[edges[n].first + 1] = pos;
+        csr_list.push_back(edges[n].second);
+        ++pos;
     }
 }
 
@@ -98,7 +93,7 @@ std::vector<std::pair<int, int>> CleanEdgesList(
 
     std::vector<std::pair<int, int>> result;
     for (int i = start; i < finish; ++i) {  
-        if (partition[edges[i].first]== partition[edges[i].second]) {
+        if (partition[edges[i].first] == partition[edges[i].second]) {
             result.push_back(edges[i]);
         }
     }
@@ -116,13 +111,13 @@ int GetMeshPivotingAndMedian(
     std::vector<Rectangle> new_rectangles(n);
     int second_group_start = 0;
     for (int p: partition) {
-        if (p == 2) {
+        if (p == 1) {
             ++second_group_start;
         }
     }
     int first_counts = 0, second_counts = 0;
     for (int i = 0; i < n; ++i) {
-        if (partition[i] == 1) {
+        if (partition[i] == 0) {
             new_rectangles[first_counts] = rectangles[start + i];
             mesh_pivoting[start + i] = first_counts;
             ++first_counts;
@@ -163,12 +158,17 @@ void Call_METIS(
     const std::vector<idx_t>& csr_list, 
     std::vector<idx_t>& partition) {
 
-    idx_t nvtxs = csr_starts.size(), ncon = 1, nparts = 2, objval;
-    int errcode = METIS_PartGraphRecursive(&nvtxs, &ncon, (idx_t*)csr_starts.data(), (idx_t*)csr_list.data(), 
-                            NULL, NULL, NULL, &nparts, NULL, NULL, NULL, &objval, (idx_t*)partition.data());
+    idx_t nvtxs = csr_starts.size() - 1, ncon = 1, nparts = 2, objval;
+    idx_t options[METIS_NOPTIONS];
+    METIS_SetDefaultOptions(options);
 
-    switch(errcode) {
-        case METIS_OK: break;
+    int errcode = METIS_PartGraphRecursive(&nvtxs, &ncon, (idx_t*)csr_starts.data(), (idx_t*)csr_list.data(), 
+                        NULL, NULL, NULL, &nparts, NULL, NULL, options, &objval, partition.data());
+
+    switch (errcode) {
+        case METIS_OK:
+            std::cout << "METIS ok!\n";
+            break;
         case METIS_ERROR_INPUT:
             std::cout << "METIS error input!\n";
             break;
@@ -261,6 +261,13 @@ RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& gra
             stream >> i >> j;
             _graphEdges.push_back({i, j});
         }
+        std::vector<std::pair<int, int>> edges_reversed(_graphEdges.size());
+        for (int i = 0; i < edges_reversed.size(); ++i) {
+            edges_reversed[i] = {_graphEdges[i].second, _graphEdges[i].first};
+        }
+        _graphEdges.insert(_graphEdges.end(), edges_reversed.begin(), edges_reversed.end());
+        std::sort(_graphEdges.begin(), _graphEdges.end(),
+            [](const auto& a, const auto& b){ return a.first <  b.first; });
         std::cout << "Mesh graph is ready\n\n";
     }
 }
@@ -276,8 +283,7 @@ void RectangleMesh::FormWaveletMatrix() {
     _wmatrix.starts[0] = 0;
     _wmatrix.medians[0] = nvertices;
     _wmatrix.ends[0] = nvertices;
-    
-    std::vector<idx_t> csr_starts, csr_list;
+
     std::vector<int> barriers = {0, nvertices};
     int row = 1;
 
@@ -287,13 +293,20 @@ void RectangleMesh::FormWaveletMatrix() {
         std::vector<int> new_barriers;
         for (int i = 0; i < barriers.size() - 1; ++i) {
             if (barriers[i+1] - barriers[i] < 2) {
+                new_barriers.push_back(barriers[i]);
+                new_barriers.push_back(barriers[i+1]);
+                std::vector<idx_t> partition(barriers[i+1] - barriers[i], 0);
+                const auto& local_edges = CleanEdgesList(_graphEdges, barriers[i], barriers[i+1], partition);
+                new_edges.insert(new_edges.end(), local_edges.begin(), local_edges.end());
                 continue;
             }
+            int nvrt_lock = barriers[i+1] - barriers[i];
+            std::vector<idx_t> csr_starts(nvrt_lock+1, 0), csr_list;
 
-            GraphEdgesToCsr(csr_starts, csr_list, barriers[i], barriers[i+1], _graphEdges);
-            std::vector<idx_t> partition(barriers[i+1] - barriers[i]);
+            GraphEdgesToCsr(_graphEdges, 0, _graphEdges.size(), csr_starts, csr_list);
+            std::vector<idx_t> partition(nvrt_lock); 
             
-            Call_METIS(csr_starts, csr_list, partition);
+            Call_METIS(csr_starts, csr_list, partition); 
             
             const auto& local_edges = CleanEdgesList(_graphEdges, barriers[i], barriers[i+1], partition);
             new_edges.insert(new_edges.end(), local_edges.begin(), local_edges.end());
@@ -310,6 +323,7 @@ void RectangleMesh::FormWaveletMatrix() {
             
             ++row;
         }
+        break;
         RenumberVertices(new_edges, mesh_pivoting);
         _graphEdges = std::move(new_edges);
         barriers = std::move(new_barriers);
@@ -317,13 +331,14 @@ void RectangleMesh::FormWaveletMatrix() {
     }
 
     if (row != nvertices) {
-        throw std::runtime_error("Cannot prepare wavelet matrix!");
+        //throw std::runtime_error("Cannot prepare wavelet matrix!");
     }
 
-    PrintSubmesh(_data, _wmatrix.starts[2], _wmatrix.ends[2], "submesh2.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[3], _wmatrix.ends[3], "submesh3.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[4], _wmatrix.ends[4], "submesh4.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[6], _wmatrix.ends[6], "submesh6.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[1], _wmatrix.medians[1], "submesh2.vtk");
+    //PrintSubmesh(_data, _wmatrix.starts[2], _wmatrix.ends[2], "submesh2.vtk");
+    //PrintSubmesh(_data, _wmatrix.starts[3], _wmatrix.ends[3], "submesh3.vtk");
+    //PrintSubmesh(_data, _wmatrix.starts[4], _wmatrix.ends[4], "submesh4.vtk");
+    //PrintSubmesh(_data, _wmatrix.starts[6], _wmatrix.ends[6], "submesh6.vtk");
 }
 
 void PrepareSupports1D(std::vector<Interval>& intervals, int n) {
@@ -838,6 +853,10 @@ SurfaceSolver::SurfaceSolver(
 
     _mesh = RectangleMesh(meshFile, graphFile);
     _dim = 2 * _mesh.Data().size(); 
+}
+
+void SurfaceSolver::WaveletTransform() {
+    _mesh.FormWaveletMatrix();
 }
 
 void SurfaceSolver::PrintEsa(const Eigen::VectorXcd& x) const {

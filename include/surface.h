@@ -135,6 +135,7 @@ public:
     using RectangleSurfaceSolver::PrintFullMatrix;
 
     SurfaceSolver(double k, const std::string& meshFile, const std::string& graphFile = "");
+    void WaveletTransform();
     void PrintSolutionVtk(Eigen::VectorXcd x) { _printVtk(x); }
     void PrintEsa(const Eigen::VectorXcd& x) const;
 
