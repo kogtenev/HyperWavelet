@@ -86,18 +86,36 @@ void GraphEdgesToCsr(
     }
 }
 
-std::vector<std::pair<int, int>> CleanEdgesList(
-    const std::vector<std::pair<int, int>>& edges, 
+int GetEdgesListAndMedian(
+    const std::vector<std::pair<int, int>>& edges,
+    std::vector<std::pair<int, int>>& new_edges, 
     int start, int finish, 
     const std::vector<idx_t>& partition) {
-
-    std::vector<std::pair<int, int>> result;
+    
+    std::vector<std::pair<int, int>> helper;
     for (int i = start; i < finish; ++i) {  
         if (partition[edges[i].first] == partition[edges[i].second]) {
-            result.push_back(edges[i]);
+            helper.push_back(edges[i]);
         }
     }
-    return result;
+    new_edges.resize(helper.size());
+    int second_group_start = 0;
+    for (int i = 0; i < helper.size(); ++i) {
+        if (partition[helper[i].first] == 0) {
+            ++second_group_start;
+        }
+    }
+    int first_counts = 0, second_counts = 0;
+    for (int i = 0; i < helper.size(); ++i) {
+        if (partition[helper[i].first] == 0) {
+            new_edges[first_counts] = helper[i];
+            ++first_counts;
+        } else {
+            new_edges[second_group_start + second_counts] = helper[i];
+            ++second_counts;
+        }
+    }
+    return first_counts;
 }
 
 int GetMeshPivotingAndMedian(
@@ -107,7 +125,6 @@ int GetMeshPivotingAndMedian(
     const std::vector<int>& partition) {
     
     int n = finish - start;
-    std::vector<int> result(n);
     std::vector<Rectangle> new_rectangles(n);
     int second_group_start = 0;
     for (int p: partition) {
@@ -118,17 +135,17 @@ int GetMeshPivotingAndMedian(
     int first_counts = 0, second_counts = 0;
     for (int i = 0; i < n; ++i) {
         if (partition[i] == 0) {
-            new_rectangles[first_counts] = rectangles[start + i];
+            //new_rectangles[first_counts] = rectangles[start + i];
             mesh_pivoting[start + i] = first_counts;
             ++first_counts;
         } else {
-            new_rectangles[second_group_start + second_counts] = rectangles[start + i];
-            mesh_pivoting[start + i] = second_group_start + second_counts;
+            //new_rectangles[second_group_start + second_counts] = rectangles[start + i];
+            mesh_pivoting[start + i] = second_counts;
             ++second_counts;
         }
     }
     for (int i = 0; i < n; ++i) {
-        rectangles[start + i] = new_rectangles[i];
+        //rectangles[start + i] = new_rectangles[i];
     }
     return first_counts;
 }
@@ -136,18 +153,18 @@ int GetMeshPivotingAndMedian(
 void RenumberVertices(
     std::vector<std::pair<int, int>>& edges,
     const std::vector<int>& mesh_pivoting) {
-
+    
     for (int i = 0; i < edges.size(); ++i) {
         edges[i].first = mesh_pivoting[edges[i].first];
         edges[i].second = mesh_pivoting[edges[i].second];
     }
 }
 
-int GetDiameter(const std::vector<int>& barriers) {
+int GetDiameter(const std::vector<int>& vert_barriers) {
     int result = 0;
-    for (int i = 0; i < barriers.size() - 1; ++i) {
-        if (barriers[i+1] - barriers[i] > result) {
-            result = barriers[i+1] - barriers[i];
+    for (int i = 0; i < vert_barriers.size() - 1; ++i) {
+        if (vert_barriers[i+1] - vert_barriers[i] > result) {
+            result = vert_barriers[i+1] - vert_barriers[i];
         }
     }
     return result;
@@ -179,7 +196,7 @@ void Call_METIS(
             std::cout << "Unknown METIS error!\n";
             break;
         default:
-            std::cout << "Starnge METIS output!\n";
+            std::cout << "Strange METIS output!\n";
     }
 }
 
@@ -274,6 +291,7 @@ RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& gra
 
 void RectangleMesh::FormWaveletMatrix() {
     int nvertices = _data.size();
+    int nedges = _graphEdges.size();
     int diameter = nvertices;
 
     _wmatrix.starts.resize(nvertices);
@@ -284,50 +302,76 @@ void RectangleMesh::FormWaveletMatrix() {
     _wmatrix.medians[0] = nvertices;
     _wmatrix.ends[0] = nvertices;
 
-    std::vector<int> barriers = {0, nvertices};
+    std::vector<int> vert_barriers = {0, nvertices};
+    std::vector<int> edge_barriers = {0, nedges};
     int row = 1;
 
     while (diameter > 1) {
         std::vector<std::pair<int, int>> new_edges;
         std::vector<int> mesh_pivoting(nvertices);
-        std::vector<int> new_barriers;
-        for (int i = 0; i < barriers.size() - 1; ++i) {
-            if (barriers[i+1] - barriers[i] < 2) {
-                new_barriers.push_back(barriers[i]);
-                new_barriers.push_back(barriers[i+1]);
-                std::vector<idx_t> partition(barriers[i+1] - barriers[i], 0);
-                const auto& local_edges = CleanEdgesList(_graphEdges, barriers[i], barriers[i+1], partition);
-                new_edges.insert(new_edges.end(), local_edges.begin(), local_edges.end());
+        std::vector<int> new_vert_barriers;
+        std::vector<int> new_edge_barriers = {0};
+        for (int i = 0; i < vert_barriers.size() - 1; ++i) {
+            int nvrt_lock = vert_barriers[i+1] - vert_barriers[i];
+            if (nvrt_lock < 2) {
+                new_vert_barriers.push_back(vert_barriers[i]);
+                new_vert_barriers.push_back(vert_barriers[i+1]);
+                new_edge_barriers.push_back(edge_barriers[i]);
+                new_edge_barriers.push_back(edge_barriers[i+1]);
+                new_edges.insert(new_edges.end(), &_graphEdges[edge_barriers[i]], &_graphEdges[edge_barriers[i+1]]);
                 continue;
             }
-            int nvrt_lock = barriers[i+1] - barriers[i];
             std::vector<idx_t> csr_starts(nvrt_lock+1, 0), csr_list;
-
-            GraphEdgesToCsr(_graphEdges, 0, _graphEdges.size(), csr_starts, csr_list);
+            GraphEdgesToCsr(_graphEdges, edge_barriers[i], edge_barriers[i+1], csr_starts, csr_list);
             std::vector<idx_t> partition(nvrt_lock); 
+
+            std::cout << "Row: " << row << std::endl;
+            std::cout << "Number of vertices: " << nvrt_lock << std::endl;
+            std::cout << "Last adj elem: " << csr_starts[nvrt_lock] << std::endl;
+            std::cout << "Number of edges " << csr_list.size() << std::endl;
+            std::cout << "Edge barriers difference: " << edge_barriers[i+1] - edge_barriers[i] << std::endl;
+            std::cout << "Edge barriers: " << edge_barriers[i] << " " << edge_barriers[i+1] << std::endl;
+            std::cout << "Vert barriers difference: " << vert_barriers[i+1] - vert_barriers[i] << std::endl;
+            std::cout << "Vert barriers: " << vert_barriers[i] << " " << vert_barriers[i+1] << std::endl;
             
             Call_METIS(csr_starts, csr_list, partition); 
             
-            const auto& local_edges = CleanEdgesList(_graphEdges, barriers[i], barriers[i+1], partition);
-            new_edges.insert(new_edges.end(), local_edges.begin(), local_edges.end());
+            std::vector<std::pair<int, int>> local_edges;
+            int edge_median = GetEdgesListAndMedian(_graphEdges, local_edges, edge_barriers[i], edge_barriers[i+1], partition);
+            std::cout << "New edges size: " << local_edges.size() << std::endl;
+            std::cout << "Edge median: " << edge_median << std::endl;
+            std::cout << "First edge: " << local_edges.front().first << " " << local_edges.front().second << std::endl;
+            std::cout << "Last edge: "  << local_edges.back().first << " " << local_edges.back().second << std::endl;
 
-            int median = GetMeshPivotingAndMedian(_data, mesh_pivoting, barriers[i], barriers[i+1], partition);
+            new_edges.insert(new_edges.end(), local_edges.begin(), local_edges.end());
+            /*new_edge_barriers.push_back(edge_barriers[i]);
+            new_edge_barriers.push_back(edge_barriers[i] + edge_median);
+            new_edge_barriers.push_back(edge_barriers[i+1]);*/
+            int previous_barrier = new_edge_barriers.back();
+            new_edge_barriers.push_back(previous_barrier + edge_median);
+            new_edge_barriers.push_back(previous_barrier + new_edges.size());
+            std::cout << "Ok" << std::endl;
+
+            int vert_median = GetMeshPivotingAndMedian(_data, mesh_pivoting, vert_barriers[i], vert_barriers[i+1], partition);
+
+            std::cout << "Vert median: " << vert_median << std::endl;
+
+            new_vert_barriers.push_back(vert_barriers[i]);
+            new_vert_barriers.push_back(vert_barriers[i] + vert_median);
+            new_vert_barriers.push_back(vert_barriers[i+1]);
             
-            new_barriers.push_back(barriers[i]);
-            new_barriers.push_back(barriers[i] + median);
-            new_barriers.push_back(barriers[i+1]);
-            
-            _wmatrix.starts[row] = barriers[i];
-            _wmatrix.medians[row] = barriers[i] + median;
-            _wmatrix.ends[row] = barriers[i+1];
+            _wmatrix.starts[row] = vert_barriers[i];
+            _wmatrix.medians[row] = vert_barriers[i] + vert_median;
+            _wmatrix.ends[row] = vert_barriers[i+1];
             
             ++row;
+            std::cout << std::endl;
         }
-        break;
         RenumberVertices(new_edges, mesh_pivoting);
         _graphEdges = std::move(new_edges);
-        barriers = std::move(new_barriers);
-        diameter = GetDiameter(barriers);
+        vert_barriers = std::move(new_vert_barriers);
+        edge_barriers = std::move(new_edge_barriers);
+        diameter = GetDiameter(vert_barriers); 
     }
 
     if (row != nvertices) {
