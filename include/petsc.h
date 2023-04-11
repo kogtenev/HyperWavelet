@@ -96,7 +96,6 @@ public:
         PCFactorSetLevels(prec, 2);
         PCFactorSetMatOrderingType(prec, MATORDERINGQMD);
 
-
         KSPSetFromOptions(solver);
         KSPSetUp(solver);
 

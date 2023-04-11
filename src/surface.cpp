@@ -77,19 +77,18 @@ void GraphEdgesToCsr(
     std::vector<idx_t>& csr_list) {
 
     csr_list.reserve(edges.size());
-    int pos = 1;
     for (const auto& edge: edges) {
-        csr_starts[edge.first + 1] = pos;
+        ++csr_starts[edge.first + 1];
         csr_list.push_back(edge.second);
-        ++pos;
     }
+    std::partial_sum(csr_starts.begin(), csr_starts.end(), csr_starts.begin());
 }
 
 void GetPivoting(
     const std::vector<idx_t>& partition, 
-    std::vector<int>& left_pivoting,
-    std::vector<int>& right_pivoting) {
-
+    std::map<int, int>& left_pivoting,
+    std::map<int, int>& right_pivoting) {
+    
     std::vector<int> left_piv_inverse, right_piv_inverse;
     for (int i = 0; i < partition.size(); ++i) {
         if (partition[i] == 0) {
@@ -98,9 +97,6 @@ void GetPivoting(
             right_piv_inverse.push_back(i);
         }
     }
-    int left = left_piv_inverse.size(), right = right_piv_inverse.size();
-    left_pivoting.resize(left); 
-    right_pivoting.resize(right);
     for (int i = 0; i < left_piv_inverse.size(); ++i) {
         left_pivoting[left_piv_inverse[i]] = i;
     }
@@ -126,12 +122,37 @@ void SplitEdges(
 
 void RenumberVertices(
     std::vector<std::pair<int, int>>& edges,
-    const std::vector<int>& mesh_pivoting) {
+    const std::map<int, int>& mesh_pivoting) {
     
     for (int i = 0; i < edges.size(); ++i) {
-        edges[i].first = mesh_pivoting[edges[i].first];
-        edges[i].second = mesh_pivoting[edges[i].second];
+        edges[i].first = mesh_pivoting.at(edges[i].first);
+        edges[i].second = mesh_pivoting.at(edges[i].second);
     }
+}
+
+void ReorderMesh(
+    int start,
+    const std::vector<idx_t>& partition, 
+    std::vector<Rectangle>& rectangles) {
+
+    Rectangle* const data = &rectangles[start];
+    std::vector<Rectangle> left_buffer, right_buffer;
+    for (int i = 0; i < partition.size(); ++i) {
+        if (partition[i] == 0) {
+            left_buffer.push_back(std::move(data[i]));
+        } else {
+            right_buffer.push_back(std::move(data[i]));
+        }
+    }
+    int i = 0;
+    for (auto& rect: left_buffer) {
+        data[i] = std::move(rect);
+        ++i;
+    }
+    for (auto& rect: right_buffer) {
+        data[i] = std::move(rect);
+        ++i;
+    } 
 }
 
 int GetDiameter(const std::vector<int>& barriers) {
@@ -157,9 +178,7 @@ void Call_METIS(
                         NULL, NULL, NULL, &nparts, NULL, NULL, options, &objval, partition.data());
 
     switch (errcode) {
-        case METIS_OK:
-            std::cout << "METIS ok!\n";
-            break;
+        case METIS_OK: break;
         case METIS_ERROR_INPUT:
             std::cout << "METIS error input!\n";
             break;
@@ -258,7 +277,7 @@ RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& gra
         }
         _graphEdges.insert(_graphEdges.end(), edges_reversed.begin(), edges_reversed.end());
         std::sort(_graphEdges.begin(), _graphEdges.end(),
-            [](const auto& a, const auto& b){ return a.first <  b.first; });
+            [](const auto& a, const auto& b){ return a.first < b.first; });
         std::cout << "Mesh graph is ready\n\n";
     }
 }
@@ -289,6 +308,7 @@ void RectangleMesh::FormWaveletMatrix() {
             if (nvertices < 2) {
                 new_barriers.push_back(nvertices);
                 new_subgraph_edges.push_back(std::move(subgraphs_edges[i]));
+                continue;
             }
             
             std::vector<idx_t> csr_starts(nvertices+1, 0), csr_list;
@@ -298,7 +318,7 @@ void RectangleMesh::FormWaveletMatrix() {
 
             Call_METIS(csr_starts, csr_list, partition); 
             
-            std::vector<int> left_pivoting, right_pivoting;
+            std::map<int, int> left_pivoting, right_pivoting;
             GetPivoting(partition, left_pivoting, right_pivoting);
 
             std::vector<std::pair<int, int>> left_edges, right_edges;
@@ -306,6 +326,8 @@ void RectangleMesh::FormWaveletMatrix() {
             
             RenumberVertices(left_edges, left_pivoting);
             RenumberVertices(right_edges, right_pivoting);
+
+            ReorderMesh(barriers[i], partition, _data);
 
             new_barriers.push_back(left_pivoting.size());
             new_barriers.push_back(right_pivoting.size());
@@ -326,14 +348,17 @@ void RectangleMesh::FormWaveletMatrix() {
         diameter = GetDiameter(barriers); 
     }
 
-    if (row != nvertices) {
+    if (row != _data.size()) {
         throw std::runtime_error("Cannot prepare wavelet matrix!");
     }
 
-    PrintSubmesh(_data, _wmatrix.starts[2], _wmatrix.ends[2], "submesh2.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[3], _wmatrix.ends[3], "submesh3.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[4], _wmatrix.ends[4], "submesh4.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[6], _wmatrix.ends[6], "submesh6.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[0],  _wmatrix.ends[0],  "submesh0.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[2],  _wmatrix.ends[2],  "submesh2.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[3],  _wmatrix.ends[3],  "submesh3.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[8],  _wmatrix.ends[8],  "submesh8.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[15], _wmatrix.ends[15], "submesh15.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[32], _wmatrix.ends[32], "submesh32.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[49], _wmatrix.ends[49], "submesh57.vtk");
 }
 
 void PrepareSupports1D(std::vector<Interval>& intervals, int n) {
