@@ -14,12 +14,14 @@ struct Rectangle {
     Eigen::Vector3d normal;
     Eigen::Vector3d e1, e2;
     double area;
+    double diameter;
 
     Rectangle() = default;
 
     Rectangle(const Eigen::Vector3d& a, const Eigen::Vector3d& b, 
               const Eigen::Vector3d& c, const Eigen::Vector3d& d)
-    : a(a), b(b), c(c), d(d), center((a + b + c + d) / 4.) {
+    : a(a), b(b), c(c), d(d), center((a + b + c + d) / 4.), 
+      diameter(std::max((a - c).norm(), (b - d).norm())) {
         
         e1 = center - (b + c) / 2;
         e2 = center - (d + c) / 2;
@@ -35,10 +37,16 @@ struct Rectangle {
     }
 };
 
+struct Sphere {
+    double radious; 
+    Eigen::Vector3d center;
+};
+
 struct WaveletMatrix {
     std::vector<int> starts;
     std::vector<int> medians;
     std::vector<int> ends;
+    std::vector<Sphere> spheres;
 };
 
 class RectangleMesh {
@@ -69,6 +77,8 @@ private:
     // for mesh graph in general case
     std::vector<std::pair<int, int>> _graphEdges;
     WaveletMatrix _wmatrix; 
+
+    void _PrepareSpheres();
 }; 
 
 class RectangleSurfaceSolver {
@@ -136,11 +146,14 @@ public:
 
     SurfaceSolver(double k, const std::string& meshFile, const std::string& graphFile = "");
     void WaveletTransform();
+    void WaveletTransformInverse(Eigen::VectorXcd& x);
     void PrintSolutionVtk(Eigen::VectorXcd x) { _printVtk(x); }
     void PrintEsa(const Eigen::VectorXcd& x) const;
 
 private:
     double _CalcEsa(const Eigen::VectorXcd& x, double phi) const;
 };
+
+inline double SpereDistance(const Sphere& s1, const Sphere& s2);
 
 }

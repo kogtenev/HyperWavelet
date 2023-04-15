@@ -2,8 +2,11 @@
 #include <Eigen/Dense>
 
 #include "helpers.h"
+#include "surface.h"
 
 #define HaarBuffer Eigen::Matrix<typename Vector::Scalar, Eigen::Dynamic, 1>  
+
+using hyper_wavelet_2d::WaveletMatrix;
 
 template <typename Vector>
 void HaarElem(size_t dim, Vector& x, HaarBuffer& tmp) {
@@ -142,3 +145,47 @@ private:
     int even;
 };
 
+template <typename Vector> 
+void SurphaseWavelet(Vector& x, const WaveletMatrix& wmatrix) {
+    Eigen::VectorXcd y(x.size());
+    y.fill(0.);
+    #pragma omp parallel for
+    for (int row = 0; row < x.size(); ++row) {
+        double N1 = wmatrix.medians[row] - wmatrix.starts[row];
+        double N2 = wmatrix.ends[row] - wmatrix.medians[row];
+        double left  = (row > 0) ?  1. * N2 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 1. / sqrt(N1);
+        double right = (row > 0) ? -1. * N1 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 0.;
+        for (int col = wmatrix.starts[row]; col < wmatrix.medians[row]; ++col) {
+            y[row] += left * x[col];
+        }
+        for (int col = wmatrix.medians[row]; col < wmatrix.ends[row]; ++col) {
+            y[row] += right * x[col];
+        }
+    }
+    for (int i = 0; i < x.size(); ++i) {
+        x[i] = y[i];
+    }
+}
+
+template <typename Vector> 
+void SurphaseWaveletInverse(Vector& x, const WaveletMatrix& wmatrix) {
+    Eigen::VectorXcd y(x.size());
+    y.fill(0.);
+    for (int col = 0; col < x.size(); ++col) {
+        double N1 = wmatrix.medians[col] - wmatrix.starts[col];
+        double N2 = wmatrix.ends[col] - wmatrix.medians[col];
+        double left  = (col > 0) ?  1. * N2 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 1. / sqrt(N1);
+        double right = (col > 0) ? -1. * N1 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 0.;
+        #pragma omp parallel for
+        for (int row = wmatrix.starts[col]; row < wmatrix.medians[col]; ++row) {
+            y[row] += left * x[col];
+        }
+        #pragma omp parallel for
+        for (int row = wmatrix.medians[col]; row < wmatrix.ends[col]; ++row) {
+            y[row] += right * x[col];
+        }
+    }
+    for (int i = 0; i < x.size(); ++i) {
+        x[i] = y[i];
+    }
+}

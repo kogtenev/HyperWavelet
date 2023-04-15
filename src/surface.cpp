@@ -352,13 +352,15 @@ void RectangleMesh::FormWaveletMatrix() {
         throw std::runtime_error("Cannot prepare wavelet matrix!");
     }
 
+    _PrepareSpheres();
+
     PrintSubmesh(_data, _wmatrix.starts[0],  _wmatrix.ends[0],  "submesh0.vtk");
     PrintSubmesh(_data, _wmatrix.starts[2],  _wmatrix.ends[2],  "submesh2.vtk");
     PrintSubmesh(_data, _wmatrix.starts[3],  _wmatrix.ends[3],  "submesh3.vtk");
     PrintSubmesh(_data, _wmatrix.starts[8],  _wmatrix.ends[8],  "submesh8.vtk");
     PrintSubmesh(_data, _wmatrix.starts[15], _wmatrix.ends[15], "submesh15.vtk");
     PrintSubmesh(_data, _wmatrix.starts[32], _wmatrix.ends[32], "submesh32.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[49], _wmatrix.ends[49], "submesh57.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[49], _wmatrix.ends[49], "submesh49.vtk");
 }
 
 void PrepareSupports1D(std::vector<Interval>& intervals, int n) {
@@ -433,6 +435,27 @@ void RectangleMesh::HaarTransform() {
     }
         
     std::cout << "Time for preparation: " << profiler.Toc() << " s.\n\n";
+}
+
+void RectangleMesh::_PrepareSpheres() {
+    int nrows = _data.size();
+    _wmatrix.spheres.resize(nrows);
+    for (int row = 0; row < nrows; ++row) {
+        Eigen::Vector3d center;
+        center.fill(0.);
+        int n = _wmatrix.ends[row] - _wmatrix.starts[row];
+        for (int i = _wmatrix.starts[row]; i < _wmatrix.ends[row]; ++i) {
+            center += _data[i].center / n;
+        }
+        double radious = 0.;
+        for (int i = _wmatrix.starts[row]; i < _wmatrix.ends[row]; ++i) {
+            double new_radious = (_data[i].center - center).norm() + _data[i].diameter;
+            if (new_radious > radious) {
+                radious = new_radious;
+            }
+        }
+        _wmatrix.spheres[row] = {radious, center};
+    }
 }
 
 const std::function<Eigen::Vector3d(double, double)> _unitMap = [](double x, double y) {
@@ -877,6 +900,37 @@ SurfaceSolver::SurfaceSolver(
 
 void SurfaceSolver::WaveletTransform() {
     _mesh.FormWaveletMatrix();
+    const auto& wmatrix = _mesh.GetWaveletMatrix();
+    if (_fullMatrix.size()) {
+        for (int i = 0; i < _dim; i++) {
+            auto col = _fullMatrix.col(i);
+            Subvector2D E0(col, _dim / 2, 0);
+            SurphaseWavelet(E0, wmatrix);
+            Subvector2D E1(col, _dim / 2, 1);
+            SurphaseWavelet(E1, wmatrix);
+        }
+        for (int i = 0; i < _dim; i++) {
+            auto row = _fullMatrix.row(i);
+            Subvector2D E0(row, _dim / 2, 0);
+            SurphaseWavelet(E0, wmatrix);
+            Subvector2D E1(row, _dim / 2, 1);
+            SurphaseWavelet(E1, wmatrix);
+        }
+    }
+    if (_rhs.size()) {
+        Subvector2D f0(_rhs, _dim / 2, 0);
+        SurphaseWavelet(f0, wmatrix);
+        Subvector2D f1(_rhs, _dim / 2, 1);
+        SurphaseWavelet(f1, wmatrix);
+    } 
+}
+
+void SurfaceSolver::WaveletTransformInverse(Eigen::VectorXcd& x) {
+    const auto& wmatrix = _mesh.GetWaveletMatrix();
+    Subvector2D E0(x, _dim / 2, 0);
+    SurphaseWaveletInverse(E0, wmatrix);
+    Subvector2D E1(x, _dim / 2, 1);
+    SurphaseWaveletInverse(E1, wmatrix);
 }
 
 void SurfaceSolver::PrintEsa(const Eigen::VectorXcd& x) const {
@@ -906,6 +960,11 @@ double SurfaceSolver::_CalcEsa(const Eigen::VectorXcd& x, double phi) const {
         i++;
     }
     return 10. * std::log10(4 * M_PI * sigma.norm() * sigma.norm());
+}
+
+inline double SpereDistance(const Sphere& s1, const Sphere& s2) {
+    double distance = (s1.center - s2.center).norm() - s1.radious - s2.radious;
+    return distance > 0. ? distance : 0.;
 }
 
 }
