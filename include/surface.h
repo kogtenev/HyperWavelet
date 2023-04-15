@@ -146,14 +146,16 @@ public:
 
     SurfaceSolver(double k, const std::string& meshFile, const std::string& graphFile = "");
     void WaveletTransform();
-    void WaveletTransformInverse(Eigen::VectorXcd& x);
-    void PrintSolutionVtk(Eigen::VectorXcd x) { _printVtk(x); }
+    void WaveletTransformInverse(Eigen::VectorXcd& x) const;
+    void FormMatrixCompressed(double threshold, bool print=true);
+    void PrintSolutionVtk(const Eigen::VectorXcd& x) const { _printVtk(x); }
     void PrintEsa(const Eigen::VectorXcd& x) const;
 
 private:
     double _CalcEsa(const Eigen::VectorXcd& x, double phi) const;
+    void _formBlockRow(Eigen::MatrixXcd& blockRow, int k);
 };
 
-inline double SpereDistance(const Sphere& s1, const Sphere& s2);
+inline double SphereDistance(const Sphere& s1, const Sphere& s2);
 
 }

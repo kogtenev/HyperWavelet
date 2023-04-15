@@ -174,7 +174,7 @@ void Call_METIS(
     idx_t options[METIS_NOPTIONS];
     METIS_SetDefaultOptions(options);
 
-    int errcode = METIS_PartGraphRecursive(&nvtxs, &ncon, (idx_t*)csr_starts.data(), (idx_t*)csr_list.data(), 
+    int errcode = METIS_PartGraphKway(&nvtxs, &ncon, (idx_t*)csr_starts.data(), (idx_t*)csr_list.data(), 
                         NULL, NULL, NULL, &nparts, NULL, NULL, options, &objval, partition.data());
 
     switch (errcode) {
@@ -925,12 +925,88 @@ void SurfaceSolver::WaveletTransform() {
     } 
 }
 
-void SurfaceSolver::WaveletTransformInverse(Eigen::VectorXcd& x) {
+void SurfaceSolver::WaveletTransformInverse(Eigen::VectorXcd& x) const {
     const auto& wmatrix = _mesh.GetWaveletMatrix();
     Subvector2D E0(x, _dim / 2, 0);
     SurphaseWaveletInverse(E0, wmatrix);
     Subvector2D E1(x, _dim / 2, 1);
     SurphaseWaveletInverse(E1, wmatrix);
+}
+
+void SurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
+    Profiler profiler;
+
+    const auto& rectangles = _mesh.Data();
+    const auto& wmatrix = _mesh.GetWaveletMatrix();
+    const int N = rectangles.size();
+    std::vector<Eigen::Triplet<complex>> triplets;
+
+    _truncMatrix.resize(_dim, _dim);
+    _truncMatrix.makeCompressed();
+    std::vector<size_t> rowStarts;
+    rowStarts.push_back(0);
+
+    size_t nnz = 0;
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            if (SphereDistance(wmatrix.spheres[j], wmatrix.spheres[i]) < threshold) {
+                triplets.push_back({2*i, 2*j, complex(0.)});
+                triplets.push_back({2*i+1, 2*j, complex(0.)});
+                triplets.push_back({2*i, 2*j+1, complex(0.)});
+                triplets.push_back({2*i+1, 2*j+1, complex(0.)});
+                nnz += 4;
+            }
+        }
+        rowStarts.push_back(nnz);
+    }
+
+    for (int k = 0; k < N; k++) {
+        Eigen::MatrixXcd blockB;
+        _formBlockRow(blockB, k);
+        #pragma omp parallel for
+        for (int i = 0; i < N; i++) {
+            if (k < wmatrix.starts[i] || k > wmatrix.ends[i]) {
+                continue;
+            }
+
+            double N1 = wmatrix.medians[i] - wmatrix.starts[i];
+            double N2 = wmatrix.ends[i] - wmatrix.medians[i];
+            double left  = (i > 0) ?  1. * N2 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 1. / sqrt(N1);
+            double right = (i > 0) ? -1. * N1 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 0.;
+            double wavelet = (k < wmatrix.medians[i]) ? left : right;
+
+            for (size_t tr = rowStarts[i]; tr < rowStarts[i+1]; tr += 4) {
+                const int j = triplets[tr].col() / 2;
+
+                complex& C_0_0 = const_cast<complex&>(triplets[tr].value());
+                complex& C_1_0 = const_cast<complex&>(triplets[tr+1].value());
+                complex& C_0_1 = const_cast<complex&>(triplets[tr+2].value());
+                complex& C_1_1 = const_cast<complex&>(triplets[tr+3].value());
+
+                const auto B = blockB.block<2, 2>(0, 2*j);
+
+                C_0_0 += wavelet * B(0, 0);
+                C_1_0 += wavelet * B(1, 0);
+                C_0_1 += wavelet * B(0, 1);
+                C_1_1 += wavelet * B(1, 1);
+            }
+        }
+    }
+
+    _truncMatrix.setFromTriplets(triplets.begin(), triplets.end());
+    std::cout << "Time for forming truncated matrix: " << profiler.Toc() << " s.\n"; 
+    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / _dim / _dim << "\n";
+
+    if (print) {
+        std::ofstream fout("trunc_mat.txt", std::ios::out);
+        std::cout << "Printing truncated matrix" << '\n';
+        for (const auto& triplet: triplets) {
+            fout << triplet.col() << ' ' << triplet.row()
+                 << ' ' << std::abs(triplet.value()) << '\n';
+        }
+        fout.close();    
+    }
+    std::cout << '\n';
 }
 
 void SurfaceSolver::PrintEsa(const Eigen::VectorXcd& x) const {
@@ -962,7 +1038,31 @@ double SurfaceSolver::_CalcEsa(const Eigen::VectorXcd& x, double phi) const {
     return 10. * std::log10(4 * M_PI * sigma.norm() * sigma.norm());
 }
 
-inline double SpereDistance(const Sphere& s1, const Sphere& s2) {
+void SurfaceSolver::_formBlockRow(Eigen::MatrixXcd& blockRow, int k) {
+    blockRow.resize(2, _dim);
+    const auto& rectangles = _mesh.Data();
+    #pragma omp parallel for
+    for (int j = 0; j < _dim / 2; j++) {
+        blockRow.block<2, 2>(0, 2*j) = _LocalMatrix(rectangles[j], rectangles[k]);
+    }
+
+    auto V0 = blockRow.row(0);
+    auto V1 = blockRow.row(1);
+
+    Subvector2D V0_x(V0, _dim / 2, 0);
+    Subvector2D V0_y(V0, _dim / 2, 1);
+    Subvector2D V1_x(V1, _dim / 2, 0);
+    Subvector2D V1_y(V1, _dim / 2, 1);
+
+    const auto& wmatrix = _mesh.GetWaveletMatrix();
+
+    SurphaseWavelet(V0_x, wmatrix);
+    SurphaseWavelet(V0_y, wmatrix);
+    SurphaseWavelet(V1_x, wmatrix);
+    SurphaseWavelet(V1_y, wmatrix);
+}
+
+inline double SphereDistance(const Sphere& s1, const Sphere& s2) {
     double distance = (s1.center - s2.center).norm() - s1.radious - s2.radious;
     return distance > 0. ? distance : 0.;
 }
