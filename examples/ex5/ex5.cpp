@@ -41,11 +41,19 @@ int main(int argc, char* argv[]) {
     SurfaceSolver solver(k, meshFile, graphFile);
     solver.FormFullMatrix();
     solver.FormRhs(f);
+
+    const auto& A = solver.GetFullMatrix();
+    const auto& rhs = solver.GetRhs();
+
+    {
+        cout << "Computing svd" << endl;
+        Eigen::BDCSVD<Eigen::MatrixXcd> svd(A);
+        const auto& sigma = svd.singularValues();
+        cout << "Condition number: " << sigma[0] / sigma[sigma.size()-1] << endl; 
+    }
     
     cout << "Applying wavelet transform" << endl;
     solver.WaveletTransform();
-    const auto& A = solver.GetFullMatrix();
-    const auto& rhs = solver.GetRhs();
 
     Profiler profiler;
     cout << "Solving full linear system" << endl; 
