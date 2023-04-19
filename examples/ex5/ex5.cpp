@@ -57,9 +57,9 @@ int main(int argc, char* argv[]) {
     const auto& truncA = solver.GetTruncatedMatrix();
 
     Eigen::MatrixXcd& dA = const_cast<Eigen::MatrixXcd&>(A);
-    const double normA = dA.lpNorm<Eigen::Infinity>();
+    const double normA = dA.norm();
     dA -= truncA;
-    const double errNorm = dA.lpNorm<Eigen::Infinity>();
+    const double errNorm = dA.norm();
     cout << "Relative error for matrices: " << errNorm / normA << endl << endl;
 
     cout << "Solving truncated system" << endl;

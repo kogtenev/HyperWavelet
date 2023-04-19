@@ -895,11 +895,11 @@ SurfaceSolver::SurfaceSolver(
 ): RectangleSurfaceSolver(k) {
 
     _mesh = RectangleMesh(meshFile, graphFile);
-    _dim = 2 * _mesh.Data().size(); 
+    _dim = 2 * _mesh.Data().size();
+    _mesh.FormWaveletMatrix(); 
 }
 
 void SurfaceSolver::WaveletTransform() {
-    _mesh.FormWaveletMatrix();
     const auto& wmatrix = _mesh.GetWaveletMatrix();
     if (_fullMatrix.size()) {
         for (int i = 0; i < _dim; i++) {
@@ -965,7 +965,7 @@ void SurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
         _formBlockRow(blockB, k);
         #pragma omp parallel for
         for (int i = 0; i < N; i++) {
-            if (k < wmatrix.starts[i] || k > wmatrix.ends[i]) {
+            if (k < wmatrix.starts[i] || k >= wmatrix.ends[i]) {
                 continue;
             }
 
