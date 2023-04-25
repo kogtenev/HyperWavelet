@@ -153,6 +153,7 @@ public:
 
 private:
     double _CalcEsa(const Eigen::VectorXcd& x, double phi) const;
+    double _SuperDistance(int i, int j) const;
     void _formBlockRow(Eigen::MatrixXcd& blockRow, int k);
 };
 

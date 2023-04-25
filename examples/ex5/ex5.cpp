@@ -45,21 +45,24 @@ int main(int argc, char* argv[]) {
     const auto& A = solver.GetFullMatrix();
     const auto& rhs = solver.GetRhs();
 
-    {
+    /*{
         cout << "Computing svd" << endl;
         Eigen::BDCSVD<Eigen::MatrixXcd> svd(A);
         const auto& sigma = svd.singularValues();
         cout << "Condition number: " << sigma[0] / sigma[sigma.size()-1] << endl; 
-    }
+    }*/
     
     cout << "Applying wavelet transform" << endl;
     solver.WaveletTransform();
 
     Profiler profiler;
     cout << "Solving full linear system" << endl; 
-    Eigen::VectorXcd x = A.lu().solve(rhs);
+    Eigen::VectorXcd x;
+    {
+        Eigen::PartialPivLU<Eigen::MatrixXcd> lu(A);
+        x = lu.solve(rhs);
+    }
     cout << "Time for solution: " << profiler.Toc() << endl;
-    cout << "\nPrinting solution" << endl;
 
     solver.FormMatrixCompressed(threshold);
     const auto& truncA = solver.GetTruncatedMatrix();
@@ -78,9 +81,9 @@ int main(int argc, char* argv[]) {
     cout << "\nPrinting solution" << endl;
     cout << "Rel. error: " << (x - _x).norm() / x.norm() << endl;
 
-    solver.WaveletTransformInverse(_x);
+    /*solver.WaveletTransformInverse(_x);
     solver.PrintSolutionVtk(_x);
-    solver.PrintEsa(_x);
+    solver.PrintEsa(_x);*/
     cout << "Done" << endl;
 
     return 0;

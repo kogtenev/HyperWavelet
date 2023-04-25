@@ -949,7 +949,8 @@ void SurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
     size_t nnz = 0;
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            if (SphereDistance(wmatrix.spheres[j], wmatrix.spheres[i]) < threshold) {
+            //if (SphereDistance(wmatrix.spheres[j], wmatrix.spheres[i]) < threshold) {
+            if (_SuperDistance(i, j) < threshold) {
                 triplets.push_back({2*i, 2*j, complex(0.)});
                 triplets.push_back({2*i+1, 2*j, complex(0.)});
                 triplets.push_back({2*i, 2*j+1, complex(0.)});
@@ -1060,6 +1061,21 @@ void SurfaceSolver::_formBlockRow(Eigen::MatrixXcd& blockRow, int k) {
     SurphaseWavelet(V0_y, wmatrix);
     SurphaseWavelet(V1_x, wmatrix);
     SurphaseWavelet(V1_y, wmatrix);
+}
+
+double SurfaceSolver::_SuperDistance(int i, int j) const {
+    const auto& rectangles = _mesh.Data();
+    const auto& wmatrix = _mesh.GetWaveletMatrix();
+    double distance = std::numeric_limits<double>::infinity();
+    for (int n = wmatrix.starts[i]; n < wmatrix.ends[i]; ++n) {
+        for (int m = wmatrix.starts[j]; m < wmatrix.ends[j]; ++m) {
+            double new_distance = (rectangles[m].center - rectangles[n].center).norm() - 
+                    rectangles[n].diameter - rectangles[m].diameter;
+            new_distance = std::max(new_distance, 0.);
+            distance = std::min(new_distance, distance);
+        }
+    }
+    return distance;
 }
 
 inline double SphereDistance(const Sphere& s1, const Sphere& s2) {
