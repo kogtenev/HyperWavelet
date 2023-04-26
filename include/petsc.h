@@ -34,6 +34,12 @@ Eigen::VectorXcd PetscVectorToEigen<std::complex<double>>(Vec b, PetscInt dim) {
     return result;
 }
 
+extern "C" PetscErrorCode Monitor(KSP ksp, PetscInt it, PetscReal res, void* data) {
+    PetscReal* rhsNorm = reinterpret_cast<PetscReal*>(data);
+    std::cout << "Iteration: " << it << ", " << "rel. residual: " << res / *rhsNorm << std::endl;
+    return 0;
+}
+
 template<typename DataType>
 class PGMRES {
 private:
@@ -123,6 +129,11 @@ public:
         VecDuplicate(b, &diag);
         MatGetDiagonal(pmat, diag);
 
+        PetscReal rhsnorm;
+        VecNorm(bcopy, NORM_2, &rhsnorm);
+
+        KSPMonitorSet(solver, Monitor, &rhsnorm, 0);
+
         KSPSolve(solver, b, x);
 
         KSPGetConvergedReason(solver, &reason);
@@ -134,14 +145,12 @@ public:
 
         PetscInt iterations;
         PetscReal residual;
-        PetscReal rhsnorm;
 
         MatInfo info;
 
         KSPGetIterationNumber(solver, &iterations);
         KSPGetResidualNorm(solver, &residual);
         MatGetInfo(pmat, MAT_LOCAL, &info);
-        VecNorm(bcopy, NORM_2, &rhsnorm);
 
         std::cout << "Fill ratio for ilu: " << info.fill_ratio_needed << std::endl;
         std::cout << "Iterations: " << iterations << std::endl;
