@@ -133,7 +133,7 @@ void RenumberVertices(
 void ReorderMesh(
     int start,
     const std::vector<idx_t>& partition, 
-    std::vector<Rectangle>& rectangles) {
+    Rectangle* rectangles) {
 
     Rectangle* const data = &rectangles[start];
     std::vector<Rectangle> left_buffer, right_buffer;
@@ -283,22 +283,29 @@ RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& gra
 }
 
 void RectangleMesh::FormWaveletMatrix() {
-    int nvertices = _data.size();
+    _FormSubMatrix(_data.size(), &_data[0], _graphEdges, &_wmatrix, 1);
+}
+
+void RectangleMesh::_FormSubMatrix(int nvertices, Rectangle* data, 
+        std::vector<std::pair<int, int>>& edges,
+        WaveletMatrix* wmatrix, int min_diam) {
+    
     int diameter = nvertices;
+    if (wmatrix) {
+        wmatrix->starts.resize(nvertices);
+        wmatrix->medians.resize(nvertices);
+        wmatrix->ends.resize(nvertices);
 
-    _wmatrix.starts.resize(nvertices);
-    _wmatrix.medians.resize(nvertices);
-    _wmatrix.ends.resize(nvertices);
-
-    _wmatrix.starts[0] = 0;
-    _wmatrix.medians[0] = nvertices;
-    _wmatrix.ends[0] = nvertices;
+        wmatrix->starts[0] = 0;
+        wmatrix->medians[0] = nvertices;
+        wmatrix->ends[0] = nvertices;
+    }
 
     std::vector<int> barriers = {0, nvertices};
-    std::vector<std::vector<std::pair<int, int>>> subgraphs_edges = {std::move(_graphEdges)};
+    std::vector<std::vector<std::pair<int, int>>> subgraphs_edges = {std::move(edges)};
     int row = 1;
 
-    while (diameter > 1) {
+    while (diameter > min_diam) {
         std::vector<int> new_barriers = {0};
         std::vector<std::vector<std::pair<int, int>>> new_subgraph_edges;
 
@@ -327,7 +334,7 @@ void RectangleMesh::FormWaveletMatrix() {
             RenumberVertices(left_edges, left_pivoting);
             RenumberVertices(right_edges, right_pivoting);
 
-            ReorderMesh(barriers[i], partition, _data);
+            ReorderMesh(barriers[i], partition, data);
 
             new_barriers.push_back(left_pivoting.size());
             new_barriers.push_back(right_pivoting.size());
@@ -335,9 +342,11 @@ void RectangleMesh::FormWaveletMatrix() {
             new_subgraph_edges.push_back(std::move(left_edges));
             new_subgraph_edges.push_back(std::move(right_edges));
 
-            _wmatrix.starts[row] = barriers[i];
-            _wmatrix.medians[row] = barriers[i] + left_pivoting.size();
-            _wmatrix.ends[row] = barriers[i+1];
+            if (wmatrix) {    
+                wmatrix->starts[row] = barriers[i];
+                wmatrix->medians[row] = barriers[i] + left_pivoting.size();
+                wmatrix->ends[row] = barriers[i+1];
+            }
             
             ++row;
         }
@@ -352,7 +361,7 @@ void RectangleMesh::FormWaveletMatrix() {
         throw std::runtime_error("Cannot prepare wavelet matrix!");
     }
 
-    _PrepareSpheres();
+    /*_PrepareSpheres();
 
     PrintSubmesh(_data, _wmatrix.starts[0],  _wmatrix.ends[0],  "submesh0.vtk");
     PrintSubmesh(_data, _wmatrix.starts[2],  _wmatrix.ends[2],  "submesh2.vtk");
@@ -360,7 +369,7 @@ void RectangleMesh::FormWaveletMatrix() {
     PrintSubmesh(_data, _wmatrix.starts[8],  _wmatrix.ends[8],  "submesh8.vtk");
     PrintSubmesh(_data, _wmatrix.starts[15], _wmatrix.ends[15], "submesh15.vtk");
     PrintSubmesh(_data, _wmatrix.starts[32], _wmatrix.ends[32], "submesh32.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[49], _wmatrix.ends[49], "submesh49.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[49], _wmatrix.ends[49], "submesh49.vtk");*/
 }
 
 void PrepareSupports1D(std::vector<Interval>& intervals, int n) {

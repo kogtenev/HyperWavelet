@@ -79,6 +79,9 @@ private:
     WaveletMatrix _wmatrix; 
 
     void _PrepareSpheres();
+    void _FormSubMatrix(int nvertices, Rectangle* data, 
+            std::vector<std::pair<int, int>>& edges,
+            WaveletMatrix* wmatrix, int min_diam);
 }; 
 
 class RectangleSurfaceSolver {
