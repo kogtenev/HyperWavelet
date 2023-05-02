@@ -283,12 +283,27 @@ RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& gra
 }
 
 void RectangleMesh::FormWaveletMatrix() {
-    _FormSubMatrix(_data.size(), &_data[0], _graphEdges, &_wmatrix, 1);
+    std::vector<std::vector<std::pair<int, int>>> subgraphs_edges, ignore1;
+    std::vector<int> barriers, ignore2;
+    int min_diam = std::floor(std::sqrt(1. * _data.size()));
+    _FormSubMatrix(_data.size(), &_data[0], _graphEdges, subgraphs_edges, barriers, &_wmatrix, min_diam);
+    int n = subgraphs_edges.size();
+    MakeHaarMatrix1D(n, _waveletTransform.haar1D);
+    _waveletTransform.offsets.push_back(0);
+    _waveletTransform.wmatrices.resize(n);
+    for (int i = 0; i < n; ++i) {
+        _FormSubMatrix(barriers[i+1] - barriers[i], &_data[barriers[i]], 
+            subgraphs_edges[i], ignore1, ignore2, &_waveletTransform.wmatrices[i], 1);
+        _waveletTransform.offsets.push_back(ignore1.size());
+    }
+    std::partial_sum(_waveletTransform.offsets.begin(), 
+        _waveletTransform.offsets.end(), _waveletTransform.offsets.begin());
 }
 
 void RectangleMesh::_FormSubMatrix(int nvertices, Rectangle* data, 
         std::vector<std::pair<int, int>>& edges,
-        WaveletMatrix* wmatrix, int min_diam) {
+        std::vector<std::vector<std::pair<int, int>>>& subgraphs_edges,
+        std::vector<int>& barriers, WaveletMatrix* wmatrix, int min_diam) {
     
     int diameter = nvertices;
     if (wmatrix) {
@@ -301,8 +316,8 @@ void RectangleMesh::_FormSubMatrix(int nvertices, Rectangle* data,
         wmatrix->ends[0] = nvertices;
     }
 
-    std::vector<int> barriers = {0, nvertices};
-    std::vector<std::vector<std::pair<int, int>>> subgraphs_edges = {std::move(edges)};
+    barriers = {0, nvertices};
+    subgraphs_edges = {std::move(edges)};
     int row = 1;
 
     while (diameter > min_diam) {
@@ -356,20 +371,6 @@ void RectangleMesh::_FormSubMatrix(int nvertices, Rectangle* data,
         subgraphs_edges = std::move(new_subgraph_edges);
         diameter = GetDiameter(barriers); 
     }
-
-    if (row != _data.size()) {
-        throw std::runtime_error("Cannot prepare wavelet matrix!");
-    }
-
-    /*_PrepareSpheres();
-
-    PrintSubmesh(_data, _wmatrix.starts[0],  _wmatrix.ends[0],  "submesh0.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[2],  _wmatrix.ends[2],  "submesh2.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[3],  _wmatrix.ends[3],  "submesh3.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[8],  _wmatrix.ends[8],  "submesh8.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[15], _wmatrix.ends[15], "submesh15.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[32], _wmatrix.ends[32], "submesh32.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[49], _wmatrix.ends[49], "submesh49.vtk");*/
 }
 
 void PrepareSupports1D(std::vector<Interval>& intervals, int n) {

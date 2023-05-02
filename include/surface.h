@@ -49,6 +49,12 @@ struct WaveletMatrix {
     std::vector<Sphere> spheres;
 };
 
+struct WaveletTransformation {
+    Eigen::SparseMatrix<double> haar1D;
+    std::vector<WaveletMatrix> wmatrices;
+    std::vector<int> offsets;
+};
+
 class RectangleMesh {
 public:
     RectangleMesh(
@@ -78,10 +84,14 @@ private:
     std::vector<std::pair<int, int>> _graphEdges;
     WaveletMatrix _wmatrix; 
 
+    WaveletTransformation _waveletTransform;
+
     void _PrepareSpheres();
     void _FormSubMatrix(int nvertices, Rectangle* data, 
             std::vector<std::pair<int, int>>& edges,
-            WaveletMatrix* wmatrix, int min_diam);
+            std::vector<std::vector<std::pair<int, int>>>& subgraphs_edges,
+            std::vector<int>& barriers, WaveletMatrix* wmatrix, 
+            int min_diam);
 }; 
 
 class RectangleSurfaceSolver {
@@ -161,5 +171,7 @@ private:
 };
 
 inline double SphereDistance(const Sphere& s1, const Sphere& s2);
+
+void MakeHaarMatrix1D(int n, Eigen::SparseMatrix<double>& H);
 
 }

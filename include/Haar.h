@@ -7,6 +7,7 @@
 #define HaarBuffer Eigen::Matrix<typename Vector::Scalar, Eigen::Dynamic, 1>  
 
 using hyper_wavelet_2d::WaveletMatrix;
+using hyper_wavelet_2d::WaveletTransformation;
 
 template <typename Vector>
 void HaarElem(size_t dim, Vector& x, HaarBuffer& tmp) {
@@ -189,3 +190,62 @@ void SurphaseWaveletInverse(Vector& x, const WaveletMatrix& wmatrix) {
         x[i] = y[i];
     }
 }
+
+template <typename Vector, typename Subrange>
+void SubsurfaceWavelet(const WaveletMatrix& wmatrix, 
+    typename Vector::Scalar c, const Vector& x, Subrange& y) {
+
+    for (int row = 0; row < x.size(); ++row) {
+        double N1 = wmatrix.medians[row] - wmatrix.starts[row];
+        double N2 = wmatrix.ends[row] - wmatrix.medians[row];
+        double left  = (row > 0) ?  1. * N2 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 1. / sqrt(N1);
+        double right = (row > 0) ? -1. * N1 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 0.;
+        for (int col = wmatrix.starts[row]; col < wmatrix.medians[row]; ++col) {
+            y[row] += c * left * x[col];
+        }
+        for (int col = wmatrix.medians[row]; col < wmatrix.ends[row]; ++col) {
+            y[row] += c * right * x[col];
+        }
+    }    
+}
+
+template <typename Vector>
+class Subrange {
+public:
+    Subrange(const Vector& x, size_t start, size_t finish): data(x), start(start), _size(finish - start) {}
+
+    size_t size() { return _size; }
+
+    using Scalar = typename Vector::Scalar;
+
+    Scalar& operator[](size_t i) { return data[start + i]; }
+
+private:
+    const Vector& data;
+    size_t start;
+    size_t _size;
+};
+
+template <typename Vector> 
+void SurphaseWavelet(Vector& x, const WaveletTransformation& transform) {
+    const auto* J = transform.haar1D.innerIndexPtr();
+    const auto* I = transform.haar1D.outerIndexPtr();
+    const auto* vals = transform.haar1D.valuePtr();
+    const int hdim = transform.haar1D.rows();
+
+    HaarBuffer y(x.size());
+    y.fill(0.);
+
+    #pragma omp parallel for
+    for (int i = 0; i < hdim; ++i) {
+        Subrange y_i(y, transform.offsets[i], transform.offsets[i+1]);
+        for (int j = I[i]; j < I[i+1]; ++j) {
+            Subrange x_j(x, transform.offsets[J[j]], transform.offsets[J[j]+1]);
+            SubsurfaceWavelet(transform.wmatrices[J[j]], vals[j], x_j, y_i);
+        }
+    }
+    #pragma omp parallel for 
+    for (size_t i = 0; i < x.size(); ++i) {
+        x[i] = y[i];
+    }
+} 
