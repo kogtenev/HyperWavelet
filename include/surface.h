@@ -71,6 +71,7 @@ public:
 
     const std::vector<Rectangle>& Data() const {return _data;};
     const WaveletMatrix& GetWaveletMatrix() const {return _wmatrix;};
+    const WaveletTransformation& GetWaveletTransform() const {return _waveletTransform;}
 
 private:
     std::vector<Rectangle> _data;
@@ -161,6 +162,7 @@ public:
     void WaveletTransform();
     void WaveletTransformInverse(Eigen::VectorXcd& x) const;
     void FormMatrixCompressed(double threshold, bool print=true);
+    void FormTruncatedMatrix(double threshold, bool print=true);
     void PrintSolutionVtk(const Eigen::VectorXcd& x) const { _printVtk(x); }
     void PrintEsa(const Eigen::VectorXcd& x) const;
 

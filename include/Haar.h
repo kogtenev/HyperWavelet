@@ -132,11 +132,15 @@ class Subvector2D {
 public:
     Subvector2D(Vector& data, size_t size, int even): data(data), _size(size), even(even) {}
 
+    const typename Vector::Scalar& operator[](size_t i) const {
+        return data[2 * i + even];
+    }
+
     typename Vector::Scalar& operator[](size_t i) {
         return data[2 * i + even];
     }
 
-    size_t size() {return _size;}
+    size_t size() const {return _size;}
 
     using Scalar = typename Vector::Scalar;
 
@@ -193,7 +197,7 @@ void SurphaseWaveletInverse(Vector& x, const WaveletMatrix& wmatrix) {
 
 template <typename Vector, typename Subrange>
 void SubsurfaceWavelet(const WaveletMatrix& wmatrix, 
-    typename Vector::Scalar c, const Vector& x, Subrange& y) {
+    decltype(std::real(typename Vector::Scalar())) c, const Vector& x, Subrange& y) {
 
     for (int row = 0; row < x.size(); ++row) {
         double N1 = wmatrix.medians[row] - wmatrix.starts[row];
@@ -214,11 +218,13 @@ class Subrange {
 public:
     Subrange(const Vector& x, size_t start, size_t finish): data(x), start(start), _size(finish - start) {}
 
-    size_t size() { return _size; }
+    size_t size() const { return _size; }
 
     using Scalar = typename Vector::Scalar;
 
-    Scalar& operator[](size_t i) { return data[start + i]; }
+    const Scalar& operator[](size_t i) const { return data[start + i]; }
+
+    Scalar& operator[](size_t i) { return const_cast<Scalar&>(data[start + i]); }
 
 private:
     const Vector& data;
@@ -240,7 +246,7 @@ void SurphaseWavelet(Vector& x, const WaveletTransformation& transform) {
     for (int i = 0; i < hdim; ++i) {
         Subrange y_i(y, transform.offsets[i], transform.offsets[i+1]);
         for (int j = I[i]; j < I[i+1]; ++j) {
-            Subrange x_j(x, transform.offsets[J[j]], transform.offsets[J[j]+1]);
+            const Subrange x_j(x, transform.offsets[J[j]], transform.offsets[J[j]+1]);
             SubsurfaceWavelet(transform.wmatrices[J[j]], vals[j], x_j, y_i);
         }
     }

@@ -910,28 +910,30 @@ SurfaceSolver::SurfaceSolver(
 }
 
 void SurfaceSolver::WaveletTransform() {
-    const auto& wmatrix = _mesh.GetWaveletMatrix();
+    const auto& transform = _mesh.GetWaveletTransform();
     if (_fullMatrix.size()) {
         for (int i = 0; i < _dim; i++) {
             auto col = _fullMatrix.col(i);
             Subvector2D E0(col, _dim / 2, 0);
-            SurphaseWavelet(E0, wmatrix);
+            SurphaseWavelet(E0, transform);
             Subvector2D E1(col, _dim / 2, 1);
-            SurphaseWavelet(E1, wmatrix);
+            SurphaseWavelet(E1, transform);
         }
         for (int i = 0; i < _dim; i++) {
             auto row = _fullMatrix.row(i);
             Subvector2D E0(row, _dim / 2, 0);
-            SurphaseWavelet(E0, wmatrix);
+            SurphaseWavelet(E0, transform);
             Subvector2D E1(row, _dim / 2, 1);
-            SurphaseWavelet(E1, wmatrix);
+            SurphaseWavelet(E1, transform);
         }
     }
     if (_rhs.size()) {
+        std::cout << "Rhs norm: " << _rhs.norm() << std::endl; 
         Subvector2D f0(_rhs, _dim / 2, 0);
-        SurphaseWavelet(f0, wmatrix);
+        SurphaseWavelet(f0, transform);
         Subvector2D f1(_rhs, _dim / 2, 1);
-        SurphaseWavelet(f1, wmatrix);
+        SurphaseWavelet(f1, transform);
+        std::cout << "Rhs norm: " << _rhs.norm() << std::endl;
     } 
 }
 
@@ -941,6 +943,39 @@ void SurfaceSolver::WaveletTransformInverse(Eigen::VectorXcd& x) const {
     SurphaseWaveletInverse(E0, wmatrix);
     Subvector2D E1(x, _dim / 2, 1);
     SurphaseWaveletInverse(E1, wmatrix);
+}
+
+void SurfaceSolver::FormTruncatedMatrix(double threshold, bool print) {
+    std::cout << "Forming truncated matrix\n";
+    Profiler profiler;
+    const int n = _mesh.Data().size();
+    std::vector<Eigen::Triplet<complex>> triplets;
+    _truncMatrix.resize(_dim, _dim);
+    _truncMatrix.makeCompressed();
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (_SuperDistance(j, i) < threshold) {
+                triplets.push_back({2*i, 2*j, _fullMatrix(2*i, 2*j)});
+                triplets.push_back({2*i+1, 2*j, _fullMatrix(2*i+1, 2*j)});
+                triplets.push_back({2*i, 2*j+1, _fullMatrix(2*i, 2*j+1)});
+                triplets.push_back({2*i+1, 2*j+1, _fullMatrix(2*i+1, 2*j+1)});
+            }
+        }
+    }
+    _truncMatrix.setFromTriplets(triplets.begin(), triplets.end());
+    std::cout << "Time for forming truncated matrix: " << profiler.Toc() << " s.\n"; 
+    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / triplets.size() << "\n";
+
+    if (print) {
+        std::ofstream fout("trunc_mat.txt", std::ios::out);
+        std::cout << "Printing truncated matrix" << '\n';
+        for (const auto& triplet: triplets) {
+            fout << triplet.col() << ' ' << triplet.row()
+                 << ' ' << std::abs(triplet.value()) << '\n';
+        }
+        fout.close();    
+    }
+    std::cout << '\n';
 }
 
 void SurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
@@ -1073,14 +1108,34 @@ void SurfaceSolver::_formBlockRow(Eigen::MatrixXcd& blockRow, int k) {
     SurphaseWavelet(V1_y, wmatrix);
 }
 
+void GetRectNumbers(const WaveletTransformation& transform, int i, std::vector<int>& inds) {
+    const auto* J = transform.haar1D.innerIndexPtr();
+    const auto* I = transform.haar1D.outerIndexPtr();
+
+    int i_x = 0, i_y;
+    while (transform.offsets[i_x+1] < i) {
+        ++i_x;
+    }
+    i_y = i - transform.offsets[i_x];
+
+    for (int j = I[i_x]; j < I[i_x+1]; ++j) {
+        const auto& wmatrix = transform.wmatrices[J[j]];
+        for (int n = wmatrix.starts[i_y]; n < wmatrix.ends[i_y]; ++n) {
+            inds.push_back(transform.offsets[J[j]] + n);
+        }
+    }
+}
+
 double SurfaceSolver::_SuperDistance(int i, int j) const {
-    const auto& rectangles = _mesh.Data();
-    const auto& wmatrix = _mesh.GetWaveletMatrix();
+    std::vector<int> inds_i, inds_j;
+    GetRectNumbers(_mesh.GetWaveletTransform(), i, inds_i);
+    GetRectNumbers(_mesh.GetWaveletTransform(), j, inds_j);
     double distance = std::numeric_limits<double>::infinity();
-    for (int n = wmatrix.starts[i]; n < wmatrix.ends[i]; ++n) {
-        for (int m = wmatrix.starts[j]; m < wmatrix.ends[j]; ++m) {
+    const auto& rectangles = _mesh.Data();
+    for (int n: inds_i) {
+        for (int m: inds_j) {
             double new_distance = (rectangles[m].center - rectangles[n].center).norm() - 
-                    rectangles[n].diameter - rectangles[m].diameter;
+                rectangles[n].diameter - rectangles[m].diameter;
             new_distance = std::max(new_distance, 0.);
             distance = std::min(new_distance, distance);
         }
