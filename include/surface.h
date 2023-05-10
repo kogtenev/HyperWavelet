@@ -46,13 +46,13 @@ struct WaveletMatrix {
     std::vector<int> starts;
     std::vector<int> medians;
     std::vector<int> ends;
-    std::vector<Sphere> spheres;
 };
 
 struct WaveletTransformation {
-    Eigen::SparseMatrix<double> haar1D;
+    Eigen::SparseMatrix<double, Eigen::RowMajor> haar1D;
     std::vector<WaveletMatrix> wmatrices;
     std::vector<int> offsets;
+    int size;
 };
 
 class RectangleMesh {
@@ -174,6 +174,6 @@ private:
 
 inline double SphereDistance(const Sphere& s1, const Sphere& s2);
 
-void MakeHaarMatrix1D(int n, Eigen::SparseMatrix<double>& H);
+void MakeHaarMatrix1D(int n, Eigen::SparseMatrix<double, 1>& H);
 
 }

@@ -287,17 +287,24 @@ void RectangleMesh::FormWaveletMatrix() {
     std::vector<int> barriers, ignore2;
     int min_diam = std::floor(std::sqrt(1. * _data.size()));
     _FormSubMatrix(_data.size(), &_data[0], _graphEdges, subgraphs_edges, barriers, &_wmatrix, min_diam);
+    _waveletTransform.offsets = barriers;
     int n = subgraphs_edges.size();
+    _waveletTransform.size = std::numeric_limits<int>::max();
+    for (int i = 0; i < n; ++i) {;
+        _waveletTransform.size = std::min(_waveletTransform.size, barriers[i+1]-barriers[i]);
+    }
+    int defect = 0;
+    for (int i = 0; i < n; ++i) {
+        defect = std::max(defect, std::abs(_waveletTransform.size - barriers[i+1] + barriers[i]));
+    }
+    std::cout << "Wavelet transform size: " << _waveletTransform.size << std::endl;
+    std::cout << "Defect: " << defect << '\n' << std::endl;
     MakeHaarMatrix1D(n, _waveletTransform.haar1D);
-    _waveletTransform.offsets.push_back(0);
     _waveletTransform.wmatrices.resize(n);
     for (int i = 0; i < n; ++i) {
         _FormSubMatrix(barriers[i+1] - barriers[i], &_data[barriers[i]], 
             subgraphs_edges[i], ignore1, ignore2, &_waveletTransform.wmatrices[i], 1);
-        _waveletTransform.offsets.push_back(ignore1.size());
     }
-    std::partial_sum(_waveletTransform.offsets.begin(), 
-        _waveletTransform.offsets.end(), _waveletTransform.offsets.begin());
 }
 
 void RectangleMesh::_FormSubMatrix(int nvertices, Rectangle* data, 
@@ -448,7 +455,7 @@ void RectangleMesh::HaarTransform() {
 }
 
 void RectangleMesh::_PrepareSpheres() {
-    int nrows = _data.size();
+    /*int nrows = _data.size();
     _wmatrix.spheres.resize(nrows);
     for (int row = 0; row < nrows; ++row) {
         Eigen::Vector3d center;
@@ -465,7 +472,7 @@ void RectangleMesh::_PrepareSpheres() {
             }
         }
         _wmatrix.spheres[row] = {radious, center};
-    }
+    }*/
 }
 
 const std::function<Eigen::Vector3d(double, double)> _unitMap = [](double x, double y) {
@@ -651,7 +658,7 @@ void MakeHaarMatrix1D(int n, Eigen::MatrixXd& H) {
     }
 }
 
-void MakeHaarMatrix1D(int n, Eigen::SparseMatrix<double>& H) {
+void MakeHaarMatrix1D(int n, Eigen::SparseMatrix<double, 1>& H) {
     H.resize(n, n);
     H.makeCompressed();
     std::vector<Eigen::Triplet<double>> triplets;
@@ -705,7 +712,7 @@ void RectangleSurfaceSolver::FormMatrixCompressed(double threshold, bool print) 
         rowStarts.push_back(nnz);
     }
 
-    Eigen::SparseMatrix<double> haarX, haarY;
+    Eigen::SparseMatrix<double, 1> haarX, haarY;
     MakeHaarMatrix1D(_nx, haarX);
     MakeHaarMatrix1D(_ny, haarY);
     
@@ -767,7 +774,7 @@ void RectangleSurfaceSolver::FormRhs(const std::function<Eigen::Vector3cd(const 
 }
 
 void RectangleSurfaceSolver::PlotSolutionMap(Eigen::VectorXcd x) const {
-    std::cout << "Applying inverse Haar transfrom\n";
+    std::cout << "Applying inverse Haar transform\n";
     Subvector2D E0(x, _dim / 2, 0);
     HaarInverse2D(E0, _ny, _nx);
     Subvector2D E1(x, _dim / 2, 1);
@@ -816,7 +823,7 @@ void RectangleSurfaceSolver::PrintFullMatrix(const std::string& file) const {
 }
 
 void RectangleSurfaceSolver::PrintSolutionVtk(Eigen::VectorXcd x) const {
-    std::cout << "Applying inverse Haar transfrom\n";
+    std::cout << "Applying inverse Haar transform\n";
     Subvector2D E0(x, _dim / 2, 0);
     HaarInverse2D(E0, _ny, _nx);
     Subvector2D E1(x, _dim / 2, 1);
@@ -928,12 +935,10 @@ void SurfaceSolver::WaveletTransform() {
         }
     }
     if (_rhs.size()) {
-        std::cout << "Rhs norm: " << _rhs.norm() << std::endl; 
         Subvector2D f0(_rhs, _dim / 2, 0);
         SurphaseWavelet(f0, transform);
         Subvector2D f1(_rhs, _dim / 2, 1);
         SurphaseWavelet(f1, transform);
-        std::cout << "Rhs norm: " << _rhs.norm() << std::endl;
     } 
 }
 
@@ -964,7 +969,7 @@ void SurfaceSolver::FormTruncatedMatrix(double threshold, bool print) {
     }
     _truncMatrix.setFromTriplets(triplets.begin(), triplets.end());
     std::cout << "Time for forming truncated matrix: " << profiler.Toc() << " s.\n"; 
-    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / triplets.size() << "\n";
+    std::cout << "Proportion of nonzeros: " << 1. * _truncMatrix.nonZeros() / _dim / _dim << "\n";
 
     if (print) {
         std::ofstream fout("trunc_mat.txt", std::ios::out);
@@ -1111,17 +1116,22 @@ void SurfaceSolver::_formBlockRow(Eigen::MatrixXcd& blockRow, int k) {
 void GetRectNumbers(const WaveletTransformation& transform, int i, std::vector<int>& inds) {
     const auto* J = transform.haar1D.innerIndexPtr();
     const auto* I = transform.haar1D.outerIndexPtr();
-
     int i_x = 0, i_y;
-    while (transform.offsets[i_x+1] < i) {
+    while (transform.offsets[i_x+1] <= i) {
         ++i_x;
     }
     i_y = i - transform.offsets[i_x];
-
-    for (int j = I[i_x]; j < I[i_x+1]; ++j) {
-        const auto& wmatrix = transform.wmatrices[J[j]];
+    if (i_y < transform.size) {
+        for (int j = I[i_x]; j < I[i_x+1]; ++j) {
+            const auto& wmatrix = transform.wmatrices[J[j]];
+            for (int n = wmatrix.starts[i_y]; n < wmatrix.ends[i_y]; ++n) {
+                inds.push_back(transform.offsets[J[j]] + n);
+            }
+        }
+    } else {
+        const auto& wmatrix = transform.wmatrices[i_x];
         for (int n = wmatrix.starts[i_y]; n < wmatrix.ends[i_y]; ++n) {
-            inds.push_back(transform.offsets[J[j]] + n);
+            inds.push_back(transform.offsets[i_x] + n);
         }
     }
 }

@@ -42,9 +42,6 @@ int main(int argc, char* argv[]) {
     solver.FormFullMatrix();
     solver.FormRhs(f);
 
-    const auto& A = solver.GetFullMatrix();
-    const auto& rhs = solver.GetRhs();
-
     /*{
         cout << "Computing svd" << endl;
         Eigen::BDCSVD<Eigen::MatrixXcd> svd(A);
@@ -54,6 +51,10 @@ int main(int argc, char* argv[]) {
     
     cout << "Applying wavelet transform" << endl;
     solver.WaveletTransform();
+    solver.PrintFullMatrix("matrix.txt");
+
+    const auto& A = solver.GetFullMatrix();
+    const auto& rhs = solver.GetRhs();
 
     Profiler profiler;
     cout << "Solving full linear system" << endl; 
@@ -64,13 +65,13 @@ int main(int argc, char* argv[]) {
     }
     cout << "Time for solution: " << profiler.Toc() << endl;
 
-    solver.FormMatrixCompressed(threshold);
+    solver.FormTruncatedMatrix(threshold);
     const auto& truncA = solver.GetTruncatedMatrix();
 
     Eigen::MatrixXcd& dA = const_cast<Eigen::MatrixXcd&>(A);
-    const double normA = dA.norm();
+    const double normA = dA.lpNorm<Eigen::Infinity>();
     dA -= truncA;
-    const double errNorm = dA.norm();
+    const double errNorm = dA.lpNorm<Eigen::Infinity>();
     cout << "Relative error for matrices: " << errNorm / normA << endl << endl;
 
     cout << "Solving truncated system" << endl;

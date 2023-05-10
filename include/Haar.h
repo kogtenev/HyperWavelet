@@ -154,7 +154,6 @@ template <typename Vector>
 void SurphaseWavelet(Vector& x, const WaveletMatrix& wmatrix) {
     Eigen::VectorXcd y(x.size());
     y.fill(0.);
-    #pragma omp parallel for
     for (int row = 0; row < x.size(); ++row) {
         double N1 = wmatrix.medians[row] - wmatrix.starts[row];
         double N2 = wmatrix.ends[row] - wmatrix.medians[row];
@@ -181,11 +180,9 @@ void SurphaseWaveletInverse(Vector& x, const WaveletMatrix& wmatrix) {
         double N2 = wmatrix.ends[col] - wmatrix.medians[col];
         double left  = (col > 0) ?  1. * N2 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 1. / sqrt(N1);
         double right = (col > 0) ? -1. * N1 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 0.;
-        #pragma omp parallel for
         for (int row = wmatrix.starts[col]; row < wmatrix.medians[col]; ++row) {
             y[row] += left * x[col];
         }
-        #pragma omp parallel for
         for (int row = wmatrix.medians[col]; row < wmatrix.ends[col]; ++row) {
             y[row] += right * x[col];
         }
@@ -232,26 +229,48 @@ private:
     size_t _size;
 };
 
+template <typename Vector>
+class Subvector {
+public:
+    Subvector(const Vector& x, const std::vector<int>& indices, int offset): data(x), indices(indices), offset(offset) {}
+
+    size_t size() const { return indices.size()-1; }
+
+    using Scalar = typename Vector::Scalar;
+
+    const Scalar& operator[](size_t i) const { return data[offset + indices[i]]; }
+
+    Scalar& operator[](size_t i) { return const_cast<Scalar&>(data[offset + indices[i]]); }
+private:
+    const Vector& data;
+    const std::vector<int>& indices;
+    int offset;
+};
+
 template <typename Vector> 
 void SurphaseWavelet(Vector& x, const WaveletTransformation& transform) {
-    const auto* J = transform.haar1D.innerIndexPtr();
-    const auto* I = transform.haar1D.outerIndexPtr();
-    const auto* vals = transform.haar1D.valuePtr();
-    const int hdim = transform.haar1D.rows();
-
-    HaarBuffer y(x.size());
-    y.fill(0.);
-
     #pragma omp parallel for
-    for (int i = 0; i < hdim; ++i) {
-        Subrange y_i(y, transform.offsets[i], transform.offsets[i+1]);
-        for (int j = I[i]; j < I[i+1]; ++j) {
-            const Subrange x_j(x, transform.offsets[J[j]], transform.offsets[J[j]+1]);
-            SubsurfaceWavelet(transform.wmatrices[J[j]], vals[j], x_j, y_i);
-        }
+    for (int i = 0; i < transform.offsets.size()-1; ++i) {
+        Subrange x_i(x, transform.offsets[i], transform.offsets[i+1]);
+        SurphaseWavelet(x_i, transform.wmatrices[i]);
     }
-    #pragma omp parallel for 
-    for (size_t i = 0; i < x.size(); ++i) {
-        x[i] = y[i];
+    #pragma omp parallel for
+    for (int i = 0; i < transform.size; ++i) {
+        Subvector x_i(x, transform.offsets, i);
+        Haar(x_i);
+    }
+} 
+
+template <typename Vector> 
+void SurphaseWaveletInverse(Vector& x, const WaveletTransformation& transform) {
+    #pragma omp parallel for
+    for (int i = 0; i < transform.size; ++i) {
+        Subvector x_i(x, transform.offsets, i);
+        HaarInverse(x_i);
+    }
+    #pragma omp parallel for
+    for (int i = 0; i < transform.offsets.size()-1; ++i) {
+        Subrange x_i(x, transform.offsets[i], transform.offsets[i+1]);
+        SurphaseWaveletInverse(x_i, transform.wmatrices[i]);
     }
 } 
