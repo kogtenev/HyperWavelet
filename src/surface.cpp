@@ -943,11 +943,10 @@ void SurfaceSolver::WaveletTransform() {
 }
 
 void SurfaceSolver::WaveletTransformInverse(Eigen::VectorXcd& x) const {
-    const auto& wmatrix = _mesh.GetWaveletMatrix();
     Subvector2D E0(x, _dim / 2, 0);
-    SurphaseWaveletInverse(E0, wmatrix);
+    SurphaseWaveletInverse(E0, _mesh.GetWaveletTransform());
     Subvector2D E1(x, _dim / 2, 1);
-    SurphaseWaveletInverse(E1, wmatrix);
+    SurphaseWaveletInverse(E1, _mesh.GetWaveletTransform());
 }
 
 void SurfaceSolver::FormTruncatedMatrix(double threshold, bool print) {
