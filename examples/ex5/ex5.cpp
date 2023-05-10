@@ -82,9 +82,11 @@ int main(int argc, char* argv[]) {
     cout << "\nPrinting solution" << endl;
     cout << "Rel. error: " << (x - _x).norm() / x.norm() << endl;
 
-    /*solver.WaveletTransformInverse(_x);
+    solver.WaveletTransformInverse(_x);
+    solver.WaveletTransformInverse(x);
+    solver.EstimateErrors(x, _x);
     solver.PrintSolutionVtk(_x);
-    solver.PrintEsa(_x);*/
+    solver.PrintEsa(_x);
     cout << "Done" << endl;
 
     return 0;
