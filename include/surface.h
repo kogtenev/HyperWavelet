@@ -150,6 +150,7 @@ public:
     void FormMatrixCompressed(double threshold, bool print=true);
     void PrintSolutionVtk(const Eigen::VectorXcd& x) const { _printVtk(x); }
     void PrintEsa(const Eigen::VectorXcd& x) const;
+    void EstimateErrors(const Eigen::VectorXcd& exact, const Eigen::VectorXcd& approx);
 
 private:
     double _CalcEsa(const Eigen::VectorXcd& x, double phi) const;

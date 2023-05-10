@@ -1078,6 +1078,31 @@ double SurfaceSolver::_SuperDistance(int i, int j) const {
     return distance;
 }
 
+void SurfaceSolver::EstimateErrors(const Eigen::VectorXcd& exact, const Eigen::VectorXcd& approx) {
+    const Eigen::VectorXcd err = exact - approx;
+    double normL1 = 0., normL2 = 0., errNormL1 = 0., errNormL2 = 0.;
+    const auto& rectangles = _mesh.Data();
+    Eigen::Vector3cd average;
+    average.fill(0.);
+    for (int i = 0; i < rectangles.size(); ++i) {
+        normL2 += (std::norm(exact[2*i]) + std::norm(exact[2*i+1])) * rectangles[i].area;
+        errNormL2 += (std::norm(err[2*i]) + std::norm(err[2*i+1])) * rectangles[i].area;
+    }
+    for (int i = 0; i < rectangles.size(); ++i) {
+        Eigen::Vector3cd j = exact[2*i] * rectangles[i].e1.cast<complex>() 
+            + exact[2*i+1] * rectangles[i].e2.cast<complex>();
+        Eigen::Vector3cd j_err = err[2*i] * rectangles[i].e1.cast<complex>() 
+            + err[2*i+1] * rectangles[i].e2.cast<complex>();
+        normL1 += j.norm() * rectangles[i].area;
+        errNormL1 += j_err.norm() * rectangles[i].area;
+        average += rectangles[i].area * j_err;
+    }
+    std::cout << '\n';
+    std::cout << "L1-error: " << errNormL1 / normL1 << std::endl;
+    std::cout << "L2-error: " << std::sqrt(errNormL2 / normL2) << std::endl;
+    std::cout << "Average error: " << average.norm() << std::endl;
+}
+
 inline double SphereDistance(const Sphere& s1, const Sphere& s2) {
     double distance = (s1.center - s2.center).norm() - s1.radious - s2.radious;
     return distance > 0. ? distance : 0.;
