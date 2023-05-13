@@ -149,7 +149,7 @@ public:
     void WaveletTransformInverse(Eigen::VectorXcd& x) const;
     void FormMatrixCompressed(double threshold, bool print=true);
     void PrintSolutionVtk(const Eigen::VectorXcd& x) const { _printVtk(x); }
-    void PrintEsa(const Eigen::VectorXcd& x) const;
+    void PrintEsa(const Eigen::VectorXcd& x, const std::string& fname) const;
     void EstimateErrors(const Eigen::VectorXcd& exact, const Eigen::VectorXcd& approx);
 
 private:

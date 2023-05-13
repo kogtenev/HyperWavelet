@@ -816,9 +816,14 @@ void RectangleSurfaceSolver::PrintSolutionVtk(Eigen::VectorXcd x) const {
 
 void RectangleSurfaceSolver::PrintEsa(const Eigen::VectorXcd& x) const {
     const int N = 360;
+    Eigen::VectorXcd y = x;
+    Subvector2D E0(y, _dim / 2, 0);
+    HaarInverse2D(E0, _ny, _nx);
+    Subvector2D E1(y, _dim / 2, 1);
+    HaarInverse2D(E1, _ny, _nx);
     std::ofstream fout("esa.txt", std::ios::out);
     for (int i = 0; i < N; ++i) {
-        fout << _CalcEsa(x, 2 * M_PI * i / N) << '\n';
+        fout << _CalcEsa(y, 2 * M_PI * i / N) << '\n';
     }
     fout.close();
 }
@@ -863,9 +868,7 @@ void RectangleSurfaceSolver::_printVtk(const Eigen::VectorXcd& x) const {
 
 double RectangleSurfaceSolver::_CalcEsa(const Eigen::VectorXcd& x, double phi) const {
     Eigen::Vector3d tau;
-    tau << 0, std::cos(phi), std::sin(phi);
-    const double c = 3e8;
-    const double eps = 8.85e-12;
+    tau << 0, -std::sin(phi), -std::cos(phi);
     int i = 0;
     Eigen::Vector3cd sigma;
     sigma << 0., 0., 0.;
@@ -874,10 +877,10 @@ double RectangleSurfaceSolver::_CalcEsa(const Eigen::VectorXcd& x, double phi) c
         J = rectangle.normal.cast<complex>().cross(J).cross(rectangle.normal.cast<complex>());
         const auto& y = rectangle.center;
         const double ds = rectangle.area;
-        sigma += std::exp(-1i*_k*tau.dot(y)) * 1i * _k / c / eps * ds * 
+        sigma += std::exp(-1i*_k*tau.dot(y)) * _k * _k * ds * 
             (J - J.dot(tau.cast<complex>()) * tau.cast<complex>());
         i++;
-    }
+    } 
     return 10. * std::log10(4 * M_PI * sigma.norm() * sigma.norm());
 }
 
@@ -1010,9 +1013,9 @@ void SurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
     std::cout << '\n';
 }
 
-void SurfaceSolver::PrintEsa(const Eigen::VectorXcd& x) const {
+void SurfaceSolver::PrintEsa(const Eigen::VectorXcd& x, const std::string& fname) const {
     const int N = 360;
-    std::ofstream fout("esa.txt", std::ios::out);
+    std::ofstream fout(fname, std::ios::out);
     for (int i = 0; i < N; ++i) {
         fout << _CalcEsa(x, 2 * M_PI * i / N) << '\n';
     }
@@ -1021,9 +1024,7 @@ void SurfaceSolver::PrintEsa(const Eigen::VectorXcd& x) const {
 
 double SurfaceSolver::_CalcEsa(const Eigen::VectorXcd& x, double phi) const {
     Eigen::Vector3d tau;
-    tau << std::cos(phi), std::sin(phi), 0.;
-    const double c = 3e8;
-    const double eps = 8.85e-12;
+    tau << -std::cos(phi), -std::sin(phi), 0.;
     int i = 0;
     Eigen::Vector3cd sigma;
     sigma << 0., 0., 0.;
@@ -1032,7 +1033,7 @@ double SurfaceSolver::_CalcEsa(const Eigen::VectorXcd& x, double phi) const {
         J = rectangle.normal.cast<complex>().cross(J).cross(rectangle.normal.cast<complex>());
         const auto& y = rectangle.center;
         const double ds = rectangle.area;
-        sigma += std::exp(-1i*_k*tau.dot(y)) * 1i * _k / c / eps * ds * 
+        sigma += std::exp(-1i*_k*tau.dot(y)) * _k * _k * ds * 
             (J - J.dot(tau.cast<complex>()) * tau.cast<complex>());
         i++;
     }

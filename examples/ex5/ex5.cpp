@@ -85,7 +85,8 @@ int main(int argc, char* argv[]) {
     solver.WaveletTransformInverse(x);
     solver.EstimateErrors(x, _x);
     solver.PrintSolutionVtk(_x);
-    solver.PrintEsa(_x);
+    solver.PrintEsa(x, "esa.txt");
+    solver.PrintEsa(_x, "esa_sparse.txt");
     cout << "Done" << endl;
 
     return 0;
