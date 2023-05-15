@@ -101,10 +101,13 @@ public:
 
     const Eigen::VectorXcd& GetRhs() const {return _rhs;}
 
+    int GetDimension() const {return _dim;}
+
     void PlotSolutionMap(Eigen::VectorXcd x) const;
     void PrintFullMatrix(const std::string& file) const;
     void PrintSolutionVtk(Eigen::VectorXcd x) const;
     void PrintEsa(const Eigen::VectorXcd& x) const;
+    void PrintEsaInverse(const Eigen::MatrixXcd& x) const;
 
 protected:
     const double _k;
@@ -143,13 +146,15 @@ public:
     using RectangleSurfaceSolver::GetTruncatedMatrix;
     using RectangleSurfaceSolver::GetRhs;
     using RectangleSurfaceSolver::PrintFullMatrix;
+    using RectangleSurfaceSolver::GetDimension;
 
     SurfaceSolver(double k, const std::string& meshFile, const std::string& graphFile = "");
     void WaveletTransform();
     void WaveletTransformInverse(Eigen::VectorXcd& x) const;
-    void FormMatrixCompressed(double threshold, bool print=true);
+    void FormMatrixCompressed(double threshold, double reg = 0., bool print=true);
     void PrintSolutionVtk(const Eigen::VectorXcd& x) const { _printVtk(x); }
     void PrintEsa(const Eigen::VectorXcd& x, const std::string& fname) const;
+    void PrintEsaInverse(const Eigen::MatrixXcd& x, const std::string& fname) const;
     void EstimateErrors(const Eigen::VectorXcd& exact, const Eigen::VectorXcd& approx);
 
 private:

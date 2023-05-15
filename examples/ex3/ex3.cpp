@@ -65,26 +65,30 @@ int main(int argc, char* argv[]) {
     cout << "threshold = " << threshold << endl;
     cout << "Surface: " << surfaceName << endl << endl;
 
-    const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [&k](const Eigen::Vector3d& r) {
-        const complex<double> i = {0., 1.};
-        Eigen::Vector3cd _k, E0;
-        _k << 0., 0., k;
-        E0 << 0., 1., 0.;
-        E0 *= exp(i * _k.dot(r.cast<complex<double>>()));
-        return E0; 
-    };
-
     RectangleSurfaceSolver solver(nx, ny, k, surfaceMap);
+    Eigen::MatrixXcd fullRhs(solver.GetDimension(), 181);    
+
+    for (int n = 0; n < 181; ++n) {
+        const double phi = 2 * M_PI * 2 * n / 360;
+        const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [&k, &phi](const Eigen::Vector3d& r) {
+            const complex<double> i = {0., 1.};
+            Eigen::Vector3cd _k, E0;
+            _k << 0., k * sin(phi), k * cos(phi);
+            E0 << 0., cos(phi), -sin(phi);
+            E0 *= exp(i * _k.dot(r.cast<complex<double>>()));
+            return E0; 
+        };
+        solver.FormRhs(f);
+        solver.HaarTransform();
+        fullRhs.col(n) = solver.GetRhs();
+    }
+
     solver.FormFullMatrix();
-    solver.FormRhs(f);
     
     cout << "Applying Haar transformation" << endl;
     solver.HaarTransform();
+    const auto& A = solver.GetFullMatrix();
     //solver.PrintFullMatrix("mat.txt");
-
-    const Eigen::MatrixXcd& A = solver.GetFullMatrix();
-    const Eigen::VectorXcd& rhs = solver.GetRhs();
-    const double normA = A.lpNorm<Eigen::Infinity>();
 
     /*const auto& eig = A.eigenvalues();
     std::ofstream eigFile("eig.txt", ios::out);
@@ -98,7 +102,13 @@ int main(int argc, char* argv[]) {
 
     Profiler profiler;
     cout << "Solving linear system" << endl;
-    Eigen::VectorXcd x = A.lu().solve(rhs);
+    //Eigen::VectorXcd x = A.lu().solve(rhs);
+    Eigen::MatrixXcd x;
+    {
+        Eigen::PartialPivLU<Eigen::MatrixXcd> lu(A);
+        x = lu.solve(fullRhs);
+    }
+    const double normA = A.lpNorm<Eigen::Infinity>();
     cout << "System is solved" << endl;
     cout << "Time for solution: " << profiler.Toc() << endl << endl;
 
@@ -112,13 +122,17 @@ int main(int argc, char* argv[]) {
     cout << "Solving truncated system" << endl;
     profiler.Tic();
     Eigen::SparseLU<Eigen::SparseMatrix<complex<double>>> lu(truncA);
-    Eigen::VectorXcd _x = lu.solve(rhs);
+    //Eigen::VectorXcd _x = lu.solve(rhs);
+    Eigen::MatrixXcd _x(fullRhs.rows(), fullRhs.cols());
+    for (int i = 0; i < _x.cols(); ++i) {
+        _x.col(i) = lu.solve(fullRhs.col(i));
+    }
     cout << "Time for solution: " << profiler.Toc() << " s." << endl;
     cout << "Relative error: " << (_x - x).norm() / x.norm() << endl << endl;
 
-    solver.PlotSolutionMap(_x);
-    solver.PrintSolutionVtk(_x);
-    solver.PrintEsa(x);
+    //solver.PlotSolutionMap(_x);
+    //solver.PrintSolutionVtk(_x);
+    solver.PrintEsaInverse(x);
     cout << "Done" << endl;
     
     return 0;

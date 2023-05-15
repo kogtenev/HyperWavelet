@@ -828,6 +828,20 @@ void RectangleSurfaceSolver::PrintEsa(const Eigen::VectorXcd& x) const {
     fout.close();
 }
 
+void RectangleSurfaceSolver::PrintEsaInverse(const Eigen::MatrixXcd& x) const {
+    const int N = 181;
+    std::ofstream fout("esa.txt", std::ios::out);
+    for (int i = 0; i < N; ++i) {
+        Eigen::VectorXcd y = x.col(i);
+        Subvector2D E0(y, _dim / 2, 0);
+        HaarInverse2D(E0, _ny, _nx);
+        Subvector2D E1(y, _dim / 2, 1);
+        HaarInverse2D(E1, _ny, _nx);
+        fout << _CalcEsa(y, 2 * M_PI * 2 * i / 360) << '\n';
+    }
+    fout.close();
+}
+
 void RectangleSurfaceSolver::_printVtk(const Eigen::VectorXcd& x) const {
     std::ofstream fout("solution.vtk", std::ios::out);
     fout << "# vtk DataFile Version 3.0\n";
@@ -936,7 +950,7 @@ void SurfaceSolver::WaveletTransformInverse(Eigen::VectorXcd& x) const {
     SurphaseWaveletInverse(E1, wmatrix);
 }
 
-void SurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
+void SurfaceSolver::FormMatrixCompressed(double threshold, double reg, bool print) {
     Profiler profiler;
 
     const auto& rectangles = _mesh.Data();
@@ -954,10 +968,10 @@ void SurfaceSolver::FormMatrixCompressed(double threshold, bool print) {
         for (int j = 0; j < N; j++) {
             //if (SphereDistance(wmatrix.spheres[j], wmatrix.spheres[i]) < threshold) {
             if (_SuperDistance(i, j) < threshold) {
-                triplets.push_back({2*i, 2*j, complex(0.)});
+                triplets.push_back({2*i, 2*j, complex(i == j ? reg : 0.)});
                 triplets.push_back({2*i+1, 2*j, complex(0.)});
                 triplets.push_back({2*i, 2*j+1, complex(0.)});
-                triplets.push_back({2*i+1, 2*j+1, complex(0.)});
+                triplets.push_back({2*i+1, 2*j+1, complex(i == j ? reg : 0.)});
                 nnz += 4;
             }
         }
@@ -1018,6 +1032,21 @@ void SurfaceSolver::PrintEsa(const Eigen::VectorXcd& x, const std::string& fname
     std::ofstream fout(fname, std::ios::out);
     for (int i = 0; i < N; ++i) {
         fout << _CalcEsa(x, 2 * M_PI * i / N) << '\n';
+    }
+    fout.close();
+}
+
+void SurfaceSolver::PrintEsaInverse(const Eigen::MatrixXcd& x, const std::string& fname) const {
+    const int N = 181;
+    std::ofstream fout(fname, std::ios::out);
+    const auto& wmatrix = _mesh.GetWaveletMatrix();
+    for (int i = 0; i < N; ++i) {
+        Eigen::VectorXcd y = x.col(i);
+        Subvector2D E0(y, _dim / 2, 0);
+        SurphaseWaveletInverse(E0, wmatrix);
+        Subvector2D E1(y, _dim / 2, 1);
+        SurphaseWaveletInverse(E1, wmatrix);
+        fout << _CalcEsa(y, 2 * M_PI * 2 * i / 360) << '\n';
     }
     fout.close();
 }

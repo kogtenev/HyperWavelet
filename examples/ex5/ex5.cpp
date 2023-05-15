@@ -16,34 +16,40 @@ using SparseMatrix = Eigen::SparseMatrix<complex<double>>;
 int main(int argc, char* argv[]) {
     const double k = stod(argv[1]);
     const double threshold = stod(argv[2]);
-    const string meshFile(argv[3]);
+    const double reg = stod(argv[3]);
+    const string meshFile(argv[4]);
 
     cout << "Wave number: " << k << endl;
     cout << "threshold: " << threshold << endl;
     cout << "Mesh file: " << meshFile << endl;
 
     string graphFile;
-    if (argc > 3) {
-        graphFile = string(argv[4]);
+    if (argc > 4) {
+        graphFile = string(argv[5]);
         cout << "Graph file: " << graphFile << endl;
     }
     cout << endl;
 
-    const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [&k](const Eigen::Vector3d& r) {
-        const complex<double> i = {0., 1.};
-        Eigen::Vector3cd _k, E0;
-        _k << k,  0., 0.;
-        E0 << 0., 1., 0.;
-        E0 *= exp(i * _k.dot(r.cast<complex<double>>()));
-        return E0; 
-    };
-
     SurfaceSolver solver(k, meshFile, graphFile);
-    solver.FormFullMatrix();
-    solver.FormRhs(f);
+    Eigen::MatrixXcd fullRhs(solver.GetDimension(), 181);    
 
+    for (int n = 0; n < 181; ++n) {
+        const double phi = 2 * M_PI * 2 * n / 360;
+        const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [&k, &phi](const Eigen::Vector3d& r) {
+            const complex<double> i = {0., 1.};
+            Eigen::Vector3cd _k, E0;
+            _k << k * cos(phi), k * sin(phi), 0.;
+            E0 << -sin(phi), cos(phi), 1.;
+            E0 *= exp(i * _k.dot(r.cast<complex<double>>()));
+            return E0; 
+        };
+        solver.FormRhs(f);
+        solver.WaveletTransform();
+        fullRhs.col(n) = solver.GetRhs();
+    }
+
+    solver.FormFullMatrix();
     const auto& A = solver.GetFullMatrix();
-    const auto& rhs = solver.GetRhs();
 
     /*{
         cout << "Computing svd" << endl;
@@ -57,14 +63,14 @@ int main(int argc, char* argv[]) {
 
     Profiler profiler;
     cout << "Solving full linear system" << endl; 
-    Eigen::VectorXcd x;
+    Eigen::MatrixXcd x(fullRhs.rows(), fullRhs.cols());
     {
         Eigen::PartialPivLU<Eigen::MatrixXcd> lu(A);
-        x = lu.solve(rhs);
+        x = lu.solve(fullRhs);
     }
     cout << "Time for solution: " << profiler.Toc() << endl;
 
-    solver.FormMatrixCompressed(threshold);
+    solver.FormMatrixCompressed(threshold, reg);
     const auto& truncA = solver.GetTruncatedMatrix();
 
     Eigen::MatrixXcd& dA = const_cast<Eigen::MatrixXcd&>(A);
@@ -76,17 +82,20 @@ int main(int argc, char* argv[]) {
     cout << "Solving truncated system" << endl;
     profiler.Tic();
     Eigen::SparseLU<Eigen::SparseMatrix<complex<double>>> lu(truncA);
-    Eigen::VectorXcd _x = lu.solve(rhs);
+    auto _x = lu.solve(fullRhs);
     cout << "Time for solution: " << profiler.Toc() << endl;
     cout << "\nPrinting solution" << endl;
     cout << "Rel. error: " << (x - _x).norm() / x.norm() << endl;
 
-    solver.WaveletTransformInverse(_x);
+    /*solver.WaveletTransformInverse(_x);
     solver.WaveletTransformInverse(x);
     solver.EstimateErrors(x, _x);
     solver.PrintSolutionVtk(_x);
     solver.PrintEsa(x, "esa.txt");
-    solver.PrintEsa(_x, "esa_sparse.txt");
+    solver.PrintEsa(_x, "esa_sparse.txt");*/
+
+    solver.PrintEsaInverse(x, "esa.txt");
+    solver.PrintEsaInverse(_x, "esa_sparse.txt");
     cout << "Done" << endl;
 
     return 0;
