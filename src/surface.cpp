@@ -1061,6 +1061,7 @@ double SurfaceSolver::_CalcEsa(const Eigen::VectorXcd& x, double phi) const {
     for (const auto& rectangle: _mesh.Data()) {
         Eigen::Vector3cd J = x[2*i]*rectangle.e1.cast<complex>() + x[2*i+1]*rectangle.e2.cast<complex>();
         J = rectangle.normal.cast<complex>().cross(J).cross(rectangle.normal.cast<complex>());
+        J /= std::sqrt(rectangle.area);
         const auto& y = rectangle.center;
         const double ds = rectangle.area;
         sigma += std::exp(-1i*_k*tau.dot(y)) * _k * _k * ds * 
