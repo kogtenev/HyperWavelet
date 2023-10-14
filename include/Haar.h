@@ -9,13 +9,12 @@
 using hyper_wavelet_2d::WaveletMatrix;
 
 template <typename Vector>
-void HaarElem(size_t dim, Vector& x, HaarBuffer& tmp) {
-    const double sqrt2 = sqrt(2.);
+void HaarElem(size_t dim, Vector& x, HaarBuffer& tmp, double weight) {
     for (size_t i = 0; i < dim / 2; i++) {
-        tmp[i] = (x[2 * i] + x[2 * i + 1]) / sqrt2;
+        tmp[i] = (x[2 * i] + x[2 * i + 1]) / weight;
     }
     for (size_t i = 0; i < dim / 2; i++) {
-        tmp[dim / 2 + i] = (x[2 * i] - x[2 * i + 1]) / sqrt2;
+        tmp[dim / 2 + i] = (x[2 * i] - x[2 * i + 1]) / weight;
     }
     for (size_t i = 0; i < dim; i++) {
         x[i] = tmp[i];
@@ -23,13 +22,12 @@ void HaarElem(size_t dim, Vector& x, HaarBuffer& tmp) {
 }
 
 template <typename Vector>
-void HaarElemInverse(size_t dim, Vector& x, HaarBuffer& tmp) {
-    const double sqrt2 = sqrt(2.);
+void HaarElemInverse(size_t dim, Vector& x, HaarBuffer& tmp, double weight) {
     for (size_t i = 0; i < dim / 2; i++) {
-        tmp[2 * i] = (x[i] + x[dim / 2 + i]) / sqrt2;
+        tmp[2 * i] = (x[i] + x[dim / 2 + i]) / weight;
     }
     for (size_t i = 0; i < dim / 2; i++) {
-        tmp[2 * i + 1] = (x[i] - x[dim / 2 + i]) / sqrt2;
+        tmp[2 * i + 1] = (x[i] - x[dim / 2 + i]) / weight;
     }
     for (size_t i = 0; i < dim; i++) {
         x[i] = tmp[i];
@@ -41,7 +39,17 @@ void Haar(Vector& x) {
     size_t dim = x.size();
     HaarBuffer tmp(dim);
     while (dim > 1) {
-        HaarElem(dim, x, tmp);
+        HaarElem(dim, x, tmp, 2.);
+        dim /= 2;
+    }
+}
+
+template <typename Vector>
+void HaarUnweighted(Vector& x) {
+    size_t dim = x.size();
+    HaarBuffer tmp(dim);
+    while (dim > 1) {
+        HaarElem(dim, x, tmp, 1.);
         dim /= 2;
     }
 }
@@ -50,8 +58,9 @@ template <typename Vector>
 void HaarInverse(Vector& x) {
     size_t dim = 2;
     HaarBuffer tmp(x.size());
+    const double sqrt2 = sqrt(2.);
     while (dim <= x.size()) {
-        HaarElemInverse(dim, x, tmp);
+        HaarElemInverse(dim, x, tmp, 1.);
         dim *= 2;
     }
 }
