@@ -25,21 +25,6 @@ public:
         cout << "Number of refinment levels: " << numLevels << endl; 
         cout << "Dimension of linear system: " << _dim << endl << endl;
 
-        _supports.reserve(_dim);
-        _supports.push_back({_a, _b});
-        _supports.push_back({_a, _b});
-
-        int numOfSupports = 1;
-        double step = (_b - _a);
-
-        for (int level = 2; level <= numLevels; level++) {
-            numOfSupports *= 2;
-            step /= 2;
-            for (int i = 0; i < numOfSupports; i++) {
-                _supports.push_back({_a + step * i, _a + step * (i + 1)});
-            }
-        }
-
         _t0.resize(_dim + 2);
         _t.resize(_dim + 2);
         const double h = (_b - _a) / (_dim + 1);
@@ -48,6 +33,21 @@ public:
         }
         for (int i = 1; i <= _dim + 1; i++) {
             _t[i] = _a + (1. * i - 0.5) * h;
+        }
+
+        _supports.reserve(_dim);
+        _supports.push_back({_a + h/2, _b - h/2});
+        _supports.push_back({_a + h/2, _b - h/2});
+
+        int numOfSupports = 1;
+        double step = (_b - _a - h);
+
+        for (int level = 2; level <= numLevels; level++) {
+            numOfSupports *= 2;
+            step /= 2;
+            for (int i = 0; i < numOfSupports; i++) {
+                _supports.push_back({_a + h/2 + step * i, _a + h/2 + step * (i + 1)});
+            }
         }
     }
 
@@ -155,17 +155,10 @@ private:
     Eigen::SparseMatrix<double> _truncMat;
 };
 
-function<double(double)> f = [](double x) {return sin(10 * M_PI * x);}; 
-//function<double(double)> f = [](double x) {return 1.;};
+function<double(double)> f = [](double x) {return sin(2 * M_PI;}; 
 
 function<double(double, double)> K = [](double x, double y) {
-    return 0.;//sqrt(1. - x*x) + sqrt(1. - y*y);
-    //return 0.;
-    /*if ((x - y) == 0.) {
-        return 0.;
-    } else {
-        return sin(M_PI * (x - y)) * sin(M_PI * (x - y)) / (x - y);
-    }*/
+    return 0.;
 };
 
 static char petsc_magic[] = "Appends to an ASCII file.\n\n";
