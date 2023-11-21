@@ -49,6 +49,20 @@ public:
                 _supports.push_back({_a + h/2 + step * i, _a + h/2 + step * (i + 1)});
             }
         }
+
+        _levelForIndex.push_back(0);
+        _levelForIndex.push_back(1);
+        int numOfFunctions = 1;
+        for (int level = 2; level <= numLevels; level++) {
+            numOfFunctions *= 2;
+            for (int i = 0; i < numOfFunctions; ++i) {
+                _levelForIndex.push_back(level);
+            }
+        }
+
+        if (_dim != _levelForIndex.size()) {
+            throw std::runtime_error("Something wrong with refinment levels!");
+        }
     }
 
     void FormFullMatrix(const std::function<double(double, double)>& K) {
@@ -60,9 +74,6 @@ public:
                 _mat(i-1, j-1) = -1.0 / (_t0[i] - _t[j]) + 1.0 / (_t0[i] - _t[j+1]) + K(_t0[i], _t[j]) * h;
             }
         }
-        std::cout << _mat(0, 0) << ' ' << _mat(0, 1) << ' ' << _mat(0, 2) << '\n';
-        std::cout << _mat(1, 0) << ' ' << _mat(1, 1) << ' ' << _mat(1, 2) << '\n';
-        std::cout << _mat(2, 0) << ' ' << _mat(2, 1) << ' ' << _mat(2, 2) << '\n';
         for (int j = 0; j < _dim; j++) {
             auto col = _mat.col(j);
             Haar(col);
@@ -87,11 +98,10 @@ public:
 
         _truncMat.resize(_dim, _dim);
         std::vector<Eigen::Triplet<double>> triplets;
-        threshold *= (_b - _a);
 
         for (int i = 0; i < _dim; i++) {
             for (int j = 0; j < _dim; j++) {
-                if (Distance(_supports[i], _supports[j]) <= threshold) {
+                if (Distance(_supports[i], _supports[j]) <= _espilon(i, j)) {
                     if (i == j) {
                         triplets.push_back({i, j, _mat(i, j) + reg});
                     } else {
@@ -153,9 +163,17 @@ private:
     Eigen::MatrixXd _mat;
     Eigen::VectorXd _rhs;
     Eigen::SparseMatrix<double> _truncMat;
+    std::vector<int> _levelForIndex;
+
+    double alpha = 2.5, lambda = 10. / 3;
+    double _espilon(int i, int j) {
+        int levelI = _levelForIndex[i];
+        int levelJ = _levelForIndex[j];
+        return std::pow(2., lambda * _numLevels - alpha * (levelI + levelJ));
+    }
 };
 
-function<double(double)> f = [](double x) {return sin(2 * M_PI;}; 
+function<double(double)> f = [](double x) {return 2 * M_PI;}; 
 
 function<double(double, double)> K = [](double x, double y) {
     return 0.;
