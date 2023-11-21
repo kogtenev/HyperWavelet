@@ -40,14 +40,14 @@ public:
             }
         }
 
-        _t0.resize(_dim + 1);
-        _t.resize(_dim);
-        const double h = (_b - _a) / _dim;
-        for (int i = 0; i < _dim + 1; i++) {
-            _t[i] = _a + i * h;
+        _t0.resize(_dim + 2);
+        _t.resize(_dim + 2);
+        const double h = (_b - _a) / (_dim + 1);
+        for (int i = 0; i <= _dim + 1; i++) {
+            _t0[i] = _a + i * h;
         }
-        for (int i = 0; i < _dim; i++) {
-            _t0[i] = (_t[i] + _t[i+1]) / 2;
+        for (int i = 1; i <= _dim + 1; i++) {
+            _t[i] = _a + (1. * i - 0.5) * h;
         }
     }
 
@@ -55,11 +55,14 @@ public:
         cout << "Forming dense system matrix" << endl;
         _mat.resize(_dim, _dim);
         const double h = (_b - _a) / _dim;
-        for (int i = 0; i < _dim; i++) {
-            for (int j = 0; j < _dim; j++) {
-                _mat(i, j) = 1.0 / (_t0[i] - _t[j]) - 1.0 / (_t0[i] - _t[j+1]) + K(_t0[i], _t[j]) * h;
+        for (int i = 1; i <= _dim; i++) {
+            for (int j = 1; j <= _dim; j++) {
+                _mat(i-1, j-1) = -1.0 / (_t0[i] - _t[j]) + 1.0 / (_t0[i] - _t[j+1]) + K(_t0[i], _t[j]) * h;
             }
         }
+        std::cout << _mat(0, 0) << ' ' << _mat(0, 1) << ' ' << _mat(0, 2) << '\n';
+        std::cout << _mat(1, 0) << ' ' << _mat(1, 1) << ' ' << _mat(1, 2) << '\n';
+        std::cout << _mat(2, 0) << ' ' << _mat(2, 1) << ' ' << _mat(2, 2) << '\n';
         for (int j = 0; j < _dim; j++) {
             auto col = _mat.col(j);
             Haar(col);
@@ -73,8 +76,8 @@ public:
 
     void FormRhs(const std::function<double(double)>& f) {
         _rhs.resize(_dim);
-        for (int i = 0; i < _dim; i++) {
-            _rhs(i) = f(_t0[i]);
+        for (int i = 1; i <= _dim; i++) {
+            _rhs(i-1) = f(_t0[i]);
         }
         Haar(_rhs);
     }
@@ -156,7 +159,7 @@ function<double(double)> f = [](double x) {return sin(10 * M_PI * x);};
 //function<double(double)> f = [](double x) {return 1.;};
 
 function<double(double, double)> K = [](double x, double y) {
-    return sqrt(1. - x*x) + sqrt(1. - y*y);
+    return 0.;//sqrt(1. - x*x) + sqrt(1. - y*y);
     //return 0.;
     /*if ((x - y) == 0.) {
         return 0.;
