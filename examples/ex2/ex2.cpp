@@ -65,13 +65,13 @@ public:
         }
     }
 
-    void FormFullMatrix(const std::function<double(double, double)>& K) {
+    void FormFullMatrixUseQuads(const std::function<double(double, double)>& K) {
         cout << "Forming dense system matrix" << endl;
         _mat.resize(_dim, _dim);
         const double h = (_b - _a) / _dim;
         for (int i = 1; i <= _dim; i++) {
             for (int j = 1; j <= _dim; j++) {
-                _mat(i-1, j-1) = -1.0 / (_t0[i] - _t[j]) + 1.0 / (_t0[i] - _t[j+1]) + K(_t0[i], _t[j]) * h;
+                _mat(i-1, j-1) = -1.0 / (_t0[i] - _t[j]) + 1.0 / (_t0[i] - _t[j+1]) + K(_t0[i], _t0[j]) * h;
             }
         }
         for (int j = 0; j < _dim; j++) {
@@ -93,7 +93,7 @@ public:
         Haar(_rhs);
     }
 
-    void FormTruncatedMatrix(double threshold, double reg, bool printMatrix) {
+    void FormTruncatedMatrix(bool printMatrix) {
         cout << "Forming truncated system matrix" << endl;
 
         _truncMat.resize(_dim, _dim);
@@ -102,11 +102,7 @@ public:
         for (int i = 0; i < _dim; i++) {
             for (int j = 0; j < _dim; j++) {
                 if (Distance(_supports[i], _supports[j]) <= _espilon(i, j)) {
-                    if (i == j) {
-                        triplets.push_back({i, j, _mat(i, j) + reg});
-                    } else {
-                        triplets.push_back({i, j, _mat(i, j)});
-                    }
+                    triplets.push_back({i, j, _mat(i, j)});
                 }
             }
         }
@@ -169,14 +165,18 @@ private:
     double _espilon(int i, int j) {
         int levelI = _levelForIndex[i];
         int levelJ = _levelForIndex[j];
-        return std::pow(2., lambda * _numLevels - alpha * (levelI + levelJ));
+        return std::pow(2., lambda / 3 * _numLevels - alpha * (levelI + levelJ) / 3);
     }
 };
 
-function<double(double)> f = [](double x) {return 2 * M_PI;}; 
+function<double(double)> f = [](double x) {
+    //return 2 * M_PI;};
+    return sin(10 * M_PI * x);}; 
 
-function<double(double, double)> K = [](double x, double y) {
-    return 0.;
+function<double(double, double)> K = [](double s0, double s) {
+    return abs(s0 - s) > 1e-7 ? -cos(s0 - s) / (2. - 2. * cos(s0 - s)) +
+        2 * sin(s0 - s) * sin(s0 - s) / (2. - 2. * cos(s0 - s)) / (2. - 2. * cos(s0 - s)) -
+        1 / (s - s0) / (s - s0) : 0.; 
 };
 
 static char petsc_magic[] = "Appends to an ASCII file.\n\n";
@@ -187,13 +187,11 @@ int main(int argc, char* argv[]) {
     int numLevels = stoi(argv[1]);
     double a = stod(argv[2]);
     double b = stod(argv[3]);
-    double threshold = stod(argv[4]);
-    double reg = stod(argv[5]);
-    bool printFull = stoi(argv[6]);
-    bool printTrunctated = stoi(argv[7]);
+    bool printFull = stoi(argv[4]);
+    bool printTrunctated = stoi(argv[5]);
 
     ColocationsMethodHaar method(numLevels, a, b);
-    method.FormFullMatrix(K);
+    method.FormFullMatrixUseQuads(K);
     method.FormRhs(f);
 
     const Eigen::MatrixXd& A = method.GetFullMatrix();
@@ -211,7 +209,7 @@ int main(int argc, char* argv[]) {
     Eigen::VectorXd x = A.lu().solve(rhs);
     cout << "Time for solution: " << profiler.Toc() << " s." << endl;
 
-    method.FormTruncatedMatrix(threshold, reg, printTrunctated);
+    method.FormTruncatedMatrix(printTrunctated);
     const auto& sparseMatrix = method.GetTruncatedMatrix();
 
     cout << "Solving system with truncated matrix" << endl;
