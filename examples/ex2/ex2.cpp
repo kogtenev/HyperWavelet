@@ -68,10 +68,29 @@ public:
     void FormFullMatrixUseQuads(const std::function<double(double, double)>& K) {
         cout << "Forming dense system matrix" << endl;
         _mat.resize(_dim, _dim);
-        const double h = (_b - _a) / _dim;
+        const double h = (_b - _a) / (_dim + 1);
         for (int i = 1; i <= _dim; i++) {
             for (int j = 1; j <= _dim; j++) {
                 _mat(i-1, j-1) = -1.0 / (_t0[i] - _t[j]) + 1.0 / (_t0[i] - _t[j+1]) + K(_t0[i], _t0[j]) * h;
+            }
+        }
+        for (int j = 0; j < _dim; j++) {
+            auto col = _mat.col(j);
+            Haar(col);
+        }
+        for (int i = 0; i < _dim; i++) {
+            auto row = _mat.row(i);
+            HaarUnweighted(row);
+        }
+        _fullMatrixIsFormed = true;
+    }
+
+    void FormFullMatrixExact(const std::function<double(double, double)>& intK) {
+        cout << "Forming dense system matrix" << endl;
+        _mat.resize(_dim, _dim);
+        for (int i = 1; i <= _dim; i++) {
+            for (int j = 1; j <= _dim; j++) {
+                _mat(i-1, j-1) = -1.0 / (_t0[i] - _t[j]) + 1.0 / (_t0[i] - _t[j+1]) + intK(_t0[i], _t[j+1]) - intK(_t0[i], _t[j]);
             }
         }
         for (int j = 0; j < _dim; j++) {
@@ -169,14 +188,16 @@ private:
     }
 };
 
-function<double(double)> f = [](double x) {
-    //return 2 * M_PI;};
-    return sin(10 * M_PI * x);}; 
+function<double(double)> f = [](double x) { return -2 * M_PI; };
 
 function<double(double, double)> K = [](double s0, double s) {
     return abs(s0 - s) > 1e-7 ? -cos(s0 - s) / (2. - 2. * cos(s0 - s)) +
         2 * sin(s0 - s) * sin(s0 - s) / (2. - 2. * cos(s0 - s)) / (2. - 2. * cos(s0 - s)) -
         1 / (s - s0) / (s - s0) : 0.; 
+};
+
+function<double(double, double)> intK = [](double s0, double s) {
+    return abs(s0 - s) > 1e-7 ? sin(s0 - s) / (2. - 2. * cos(s0 - s)) - 1. / (s0 - s) : 0.;
 };
 
 static char petsc_magic[] = "Appends to an ASCII file.\n\n";
@@ -191,7 +212,8 @@ int main(int argc, char* argv[]) {
     bool printTrunctated = stoi(argv[5]);
 
     ColocationsMethodHaar method(numLevels, a, b);
-    method.FormFullMatrixUseQuads(K);
+    //method.FormFullMatrixUseQuads(K);
+    method.FormFullMatrixExact(intK);
     method.FormRhs(f);
 
     const Eigen::MatrixXd& A = method.GetFullMatrix();
