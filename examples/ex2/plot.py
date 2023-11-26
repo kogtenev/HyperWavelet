@@ -18,6 +18,7 @@ step = (b - a) / dim
 x = np.arange(a, b, step)
 
 fig, ax = plt.subplots()
+plt.grid()
 ax.plot(x, data)
 ax.plot(x, data_trunc1)
 plt.xlabel(r'$s_0$')
@@ -33,6 +34,8 @@ ax.clear()
 ax.legend([],[], frameon=False)
 fig.clear()
 plt.spy(A, markersize = 1)
+plt.xlabel('Номер строки')
+plt.ylabel('Номер столбца')
 plt.savefig('truncated_matrix.png', dpi = 199)
 
 fig, ax = plt.subplots()

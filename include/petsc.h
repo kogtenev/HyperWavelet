@@ -53,8 +53,8 @@ private:
     PC prec;
 
     KSPConvergedReason reason;
-    PetscReal rtol = 1e-6, atol = 1e-6;
-    PetscInt maxits = 500;
+    PetscReal rtol = 1e-15, atol = 1e-15;
+    PetscInt maxits = 50;
 
 public:
     PGMRES(const Eigen::SparseMatrix<DataType>& A): nnz(A.nonZeros()), dim(A.rows()) {
@@ -79,7 +79,7 @@ public:
                 PetscInt idx = i;
                 PetscInt idy = innerIndexPtr[j];
                 PetscScalar value = valuePtr[j];
-                MatSetValues(mat, 1, &idx, 1, &idy, &value, INSERT_VALUES);
+                MatSetValues(mat, 1, &idy, 1, &idx, &value, INSERT_VALUES);
             }
         }
 
@@ -90,7 +90,7 @@ public:
         KSPSetOperators(solver, mat, mat);
         KSPSetType(solver, KSPGMRES);
         KSPSetInitialGuessNonzero(solver, PETSC_FALSE);
-        KSPGMRESSetRestart(solver, 60);
+        KSPGMRESSetRestart(solver, 50);
 
         KSPSetNormType(solver, KSP_NORM_UNPRECONDITIONED);
         KSPSetTolerances(solver, atol, rtol, PETSC_DEFAULT, maxits);
@@ -99,7 +99,7 @@ public:
         PCSetType(prec, PCILU);
         //PCFactorSetDropTolerance(prec, 1e-5, 0.01, 800);
         //PCFactorSetFill(prec, 10.);
-        PCFactorSetLevels(prec, 2);
+        PCFactorSetLevels(prec, 0);
         PCFactorSetMatOrderingType(prec, MATORDERINGQMD);
 
         KSPSetFromOptions(solver);
@@ -155,6 +155,9 @@ public:
         std::cout << "Fill ratio for ilu: " << info.fill_ratio_needed << std::endl;
         std::cout << "Iterations: " << iterations << std::endl;
         std::cout << "Relative residual: " << residual / rhsnorm << std::endl << std::endl;
+
+        std::ofstream petscLog("petsc_log.txt", std::ios::app);
+        petscLog << dim << ' ' << iterations << ' ' << residual / rhsnorm << '\n'; 
 
         return PetscVectorToEigen<DataType>(x, dim);
     }

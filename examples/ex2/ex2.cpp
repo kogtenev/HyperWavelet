@@ -69,15 +69,18 @@ public:
         cout << "Forming dense system matrix" << endl;
         _mat.resize(_dim, _dim);
         const double h = (_b - _a) / (_dim + 1);
+        #pragma omp parallel for
         for (int i = 1; i <= _dim; i++) {
             for (int j = 1; j <= _dim; j++) {
                 _mat(i-1, j-1) = -1.0 / (_t0[i] - _t[j]) + 1.0 / (_t0[i] - _t[j+1]) + K(_t0[i], _t0[j]) * h;
             }
         }
+        #pragma omp parallel for
         for (int j = 0; j < _dim; j++) {
             auto col = _mat.col(j);
             Haar(col);
         }
+        #pragma omp parallel for
         for (int i = 0; i < _dim; i++) {
             auto row = _mat.row(i);
             HaarUnweighted(row);
@@ -88,15 +91,18 @@ public:
     void FormFullMatrixExact(const std::function<double(double, double)>& intK) {
         cout << "Forming dense system matrix" << endl;
         _mat.resize(_dim, _dim);
+        #pragma omp parallel for
         for (int i = 1; i <= _dim; i++) {
             for (int j = 1; j <= _dim; j++) {
                 _mat(i-1, j-1) = -1.0 / (_t0[i] - _t[j]) + 1.0 / (_t0[i] - _t[j+1]) + intK(_t0[i], _t[j+1]) - intK(_t0[i], _t[j]);
             }
         }
+        #pragma omp parallel for
         for (int j = 0; j < _dim; j++) {
             auto col = _mat.col(j);
             Haar(col);
         }
+        #pragma omp parallel for
         for (int i = 0; i < _dim; i++) {
             auto row = _mat.row(i);
             HaarUnweighted(row);
@@ -117,7 +123,7 @@ public:
 
         _truncMat.resize(_dim, _dim);
         std::vector<Eigen::Triplet<double>> triplets;
-
+        
         for (int i = 0; i < _dim; i++) {
             for (int j = 0; j < _dim; j++) {
                 if (Distance(_supports[i], _supports[j]) <= _espilon(i, j)) {
@@ -132,6 +138,9 @@ public:
              << "Proportion of nonzeros: " 
              << 1. * _truncMat.nonZeros() / _truncMat.size()
              << endl; 
+
+        ofstream nnzFile("nnz.txt", ios::app);
+        nnzFile << alpha << ' ' << lambda << ' ' << _dim << ' ' << 1. * _truncMat.nonZeros() / _truncMat.size() << '\n';
 
         // TODO: Learn about Eigen's sparse matrix output,
         // refactor truncated matrix output.
@@ -203,11 +212,13 @@ function<double(double, double)> intK = [](double s0, double s) {
 static char petsc_magic[] = "Appends to an ASCII file.\n\n";
 
 int main(int argc, char* argv[]) {
-    //PetscInitialize(&argc, &argv, (char*)0, petsc_magic);
+    PetscInitialize(&argc, &argv, (char*)0, petsc_magic);
 
     int numLevels = stoi(argv[1]);
-    double a = stod(argv[2]);
-    double b = stod(argv[3]);
+    //double a = stod(argv[2]);
+    //double b = stod(argv[3]);
+    double a = 0.;
+    double b = M_PI;
     bool printFull = stoi(argv[4]);
     bool printTrunctated = stoi(argv[5]);
 
@@ -236,18 +247,18 @@ int main(int argc, char* argv[]) {
 
     cout << "Solving system with truncated matrix" << endl;
     profiler.Tic();
-    Eigen::SparseLU<Eigen::SparseMatrix<double>> lu(sparseMatrix);
-    Eigen::VectorXd _x = lu.solve(rhs);
-    /*Eigen::GMRES<Eigen::SparseMatrix<double>, Eigen::IncompleteLUT<double>> gmres(sparseMatrix);
-    Eigen::VectorXd _x = gmres.solve(rhs);
-    cout << "Iterations: " << gmres.iterations() << endl;*/
+    //Eigen::SparseLU<Eigen::SparseMatrix<double>> lu(sparseMatrix);
+    //Eigen::VectorXd _x = lu.solve(rhs);
+    //Eigen::GMRES<Eigen::SparseMatrix<double>> gmres(sparseMatrix);
+    //Eigen::VectorXd _x = gmres.solve(rhs);
+    //cout << "Iterations: " << gmres.iterations() << endl;
 
-    //PETSC::PGMRES<double> gmres(sparseMatrix);
-    //Eigen::VectorXd _x = gmres.Solve(rhs);
-    //cout << "Time for solution: " << profiler.Toc() << " s." << endl;
+    PETSC::PGMRES<double> gmres(sparseMatrix);
+    Eigen::VectorXd _x = gmres.Solve(rhs);
+    cout << "Time for solution: " << profiler.Toc() << " s." << endl;
 
-    method.PrintSolution(x, "sol.txt");
-    method.PrintSolution(_x, "sol_trunc.txt");
+    method.PrintSolution(x, "sol_n=" + to_string(numLevels) + ".txt");
+    method.PrintSolution(_x, "sol_trunc_n=" + to_string(numLevels) + ".txt");
 
     HaarInverse(x);
     HaarInverse(_x);
