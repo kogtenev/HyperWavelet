@@ -51,13 +51,6 @@ int main(int argc, char* argv[]) {
     solver.FormFullMatrix();
     const auto& A = solver.GetFullMatrix();
 
-    /*{
-        cout << "Computing svd" << endl;
-        Eigen::BDCSVD<Eigen::MatrixXcd> svd(A);
-        const auto& sigma = svd.singularValues();
-        cout << "Condition number: " << sigma[0] / sigma[sigma.size()-1] << endl; 
-    }*/
-    
     cout << "Applying wavelet transform" << endl;
     solver.WaveletTransform();
 

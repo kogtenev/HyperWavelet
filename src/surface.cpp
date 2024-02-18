@@ -977,7 +977,7 @@ void SurfaceSolver::FormMatrixCompressed(double threshold, double reg, bool prin
     size_t nnz = 0;
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            if (SphereDistance(wmatrix.spheres[j], wmatrix.spheres[i]) < threshold) {
+            if (SphereDistance(wmatrix.spheres[j], wmatrix.spheres[i]) < _epsilon(wmatrix, i, j)) {
                 triplets.push_back({2*i, 2*j, complex(i == j ? reg : 0.)});
                 triplets.push_back({2*i+1, 2*j, complex(0.)});
                 triplets.push_back({2*i, 2*j+1, complex(0.)});
@@ -1118,6 +1118,14 @@ double SurfaceSolver::_SuperDistance(int i, int j) const {
         }
     }
     return distance;
+}
+
+double SurfaceSolver::_epsilon(const WaveletMatrix& wmatrix, int i, int j) {
+    int lI = wmatrix.rowLevels[i];
+    int lJ = wmatrix.rowLevels[j];
+    double r = wmatrix.spheres[0].radious;
+    double scale = M_PI * r * r;
+    return scale * std::pow(2., _lambda * lI / 3 - _alpha / 3 * (lI + lJ));
 }
 
 void SurfaceSolver::EstimateErrors(const Eigen::VectorXcd& exact, const Eigen::VectorXcd& approx) {

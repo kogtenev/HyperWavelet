@@ -6,8 +6,6 @@
 
 namespace hyper_wavelet_2d {
 
-enum LinearSolverType {EigenLU, EigenGMRES, PETScGMRES};
-
 struct Rectangle {
     Eigen::Vector3d a, b, c, d;
     Eigen::Vector3d center;
@@ -161,7 +159,9 @@ public:
 private:
     double _CalcEsa(const Eigen::VectorXcd& x, double phi) const;
     double _SuperDistance(int i, int j) const;
+    double _epsilon(const WaveletMatrix& wmatrix, int i, int j);
     void _formBlockRow(Eigen::MatrixXcd& blockRow, int k);
+    double _alpha = 3, _lambda = 3;
 };
 
 inline double SphereDistance(const Sphere& s1, const Sphere& s2);
