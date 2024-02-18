@@ -66,6 +66,7 @@ public:
     const WaveletMatrix& GetWaveletMatrix() const {return _wmatrix;};
     
     double Area() const {return _area;}
+    int Levels() const {return _levels;}
 
 private:
     std::vector<Rectangle> _data;
@@ -78,7 +79,8 @@ private:
 
     // for mesh graph in general case
     std::vector<std::pair<int, int>> _graphEdges;
-    WaveletMatrix _wmatrix; 
+    WaveletMatrix _wmatrix;
+    int _levels; 
     double r;
 
     void _PrepareSpheres();

@@ -370,6 +370,7 @@ void RectangleMesh::FormWaveletMatrix() {
     }
 
     _PrepareSpheres();
+    _levels = level - 1;
 
     std::cout << "Wavelet matrix is ready" << std::endl;
     std::cout << "Number of levels: " << level - 1 << '\n' << std::endl;
@@ -1134,7 +1135,7 @@ double SurfaceSolver::_SuperDistance(int i, int j) const {
 double SurfaceSolver::_epsilon(const WaveletMatrix& wmatrix, int i, int j) {
     int lI = wmatrix.rowLevels[i];
     int lJ = wmatrix.rowLevels[j];
-    return _mesh.Area() * std::pow(2., _lambda * lI / 3 - _alpha / 3 * (lI + lJ));
+    return _mesh.Area() * std::pow(2., _lambda * _mesh.Levels() / 3 - _alpha / 3 * (lI + lJ));
 }
 
 void SurfaceSolver::EstimateErrors(const Eigen::VectorXcd& exact, const Eigen::VectorXcd& approx) {
