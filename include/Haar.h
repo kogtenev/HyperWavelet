@@ -162,6 +162,7 @@ void SurphaseWavelet(Vector& x, const WaveletMatrix& wmatrix) {
             y[row] += right * x[col];
         }
     }
+    #pragma omp parallel for
     for (int i = 0; i < x.size(); ++i) {
         x[i] = y[i];
     }
@@ -185,6 +186,7 @@ void SurphaseWaveletInverse(Vector& x, const WaveletMatrix& wmatrix) {
             y[row] += right * x[col];
         }
     }
+    #pragma omp parallel for
     for (int i = 0; i < x.size(); ++i) {
         x[i] = y[i];
     }

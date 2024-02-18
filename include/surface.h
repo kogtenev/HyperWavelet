@@ -46,6 +46,7 @@ struct WaveletMatrix {
     std::vector<int> starts;
     std::vector<int> medians;
     std::vector<int> ends;
+    std::vector<int> rowLevels;
     std::vector<Sphere> spheres;
 };
 
@@ -151,7 +152,7 @@ public:
     SurfaceSolver(double k, const std::string& meshFile, const std::string& graphFile = "");
     void WaveletTransform();
     void WaveletTransformInverse(Eigen::VectorXcd& x) const;
-    void FormMatrixCompressed(double threshold, double reg = 0., bool print=true);
+    void FormMatrixCompressed(double threshold, double reg = 0., bool print=false);
     void PrintSolutionVtk(const Eigen::VectorXcd& x) const { _printVtk(x); }
     void PrintEsa(const Eigen::VectorXcd& x, const std::string& fname) const;
     void PrintEsaInverse(const Eigen::MatrixXcd& x, const std::string& fname) const;

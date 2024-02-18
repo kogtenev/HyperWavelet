@@ -259,7 +259,7 @@ RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& gra
 
         _data[i / 4] = Rectangle(a, b, c, d);
     }
-    std::cout << "Mesh is written\n";
+    std::cout << "Mesh is ready\n";
 
     if (graphFile.size()) {
         std::cout << "Reading mesh dual graph\n";
@@ -283,20 +283,25 @@ RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& gra
 }
 
 void RectangleMesh::FormWaveletMatrix() {
+    std::cout << "Forming wavelet matrix" << std::endl;
+
     int nvertices = _data.size();
     int diameter = nvertices;
 
     _wmatrix.starts.resize(nvertices);
     _wmatrix.medians.resize(nvertices);
     _wmatrix.ends.resize(nvertices);
+    _wmatrix.rowLevels.resize(nvertices);
 
     _wmatrix.starts[0] = 0;
     _wmatrix.medians[0] = nvertices;
     _wmatrix.ends[0] = nvertices;
+    _wmatrix.rowLevels[0] = 0;
 
     std::vector<int> barriers = {0, nvertices};
     std::vector<std::vector<std::pair<int, int>>> subgraphs_edges = {std::move(_graphEdges)};
     int row = 1;
+    int level = 1;
 
     while (diameter > 1) {
         std::vector<int> new_barriers = {0};
@@ -338,6 +343,7 @@ void RectangleMesh::FormWaveletMatrix() {
             _wmatrix.starts[row] = barriers[i];
             _wmatrix.medians[row] = barriers[i] + left_pivoting.size();
             _wmatrix.ends[row] = barriers[i+1];
+            _wmatrix.rowLevels[row] = level;
             
             ++row;
         }
@@ -345,7 +351,9 @@ void RectangleMesh::FormWaveletMatrix() {
         barriers = std::move(new_barriers);
 
         subgraphs_edges = std::move(new_subgraph_edges);
-        diameter = GetDiameter(barriers); 
+        diameter = GetDiameter(barriers);
+
+        ++level; 
     }
 
     if (row != _data.size()) {
@@ -354,12 +362,12 @@ void RectangleMesh::FormWaveletMatrix() {
 
     _PrepareSpheres();
 
+    std::cout << "Wavelet matrix is ready" << std::endl;
+    std::cout << "Number of levels: " << level << '\n' << std::endl;
+
     PrintSubmesh(_data, _wmatrix.starts[0],  _wmatrix.ends[0],  "submesh0.vtk");
     PrintSubmesh(_data, _wmatrix.starts[2],  _wmatrix.ends[2],  "submesh2.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[3],  _wmatrix.ends[3],  "submesh3.vtk");
     PrintSubmesh(_data, _wmatrix.starts[8],  _wmatrix.ends[8],  "submesh8.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[15], _wmatrix.ends[15], "submesh15.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[32], _wmatrix.ends[32], "submesh32.vtk");
     PrintSubmesh(_data, _wmatrix.starts[49], _wmatrix.ends[49], "submesh49.vtk");
 }
 
@@ -969,8 +977,7 @@ void SurfaceSolver::FormMatrixCompressed(double threshold, double reg, bool prin
     size_t nnz = 0;
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            //if (SphereDistance(wmatrix.spheres[j], wmatrix.spheres[i]) < threshold) {
-            if (_SuperDistance(i, j) < threshold) {
+            if (SphereDistance(wmatrix.spheres[j], wmatrix.spheres[i]) < threshold) {
                 triplets.push_back({2*i, 2*j, complex(i == j ? reg : 0.)});
                 triplets.push_back({2*i+1, 2*j, complex(0.)});
                 triplets.push_back({2*i, 2*j+1, complex(0.)});
@@ -1015,7 +1022,7 @@ void SurfaceSolver::FormMatrixCompressed(double threshold, double reg, bool prin
     }
 
     _truncMatrix.setFromTriplets(triplets.begin(), triplets.end());
-    std::cout << "Time for forming truncated matrix: " << profiler.Toc() << " s.\n"; 
+    std::cout << "Time for truncated matrix forming: " << profiler.Toc() << " s.\n"; 
     std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / _dim / _dim << "\n";
 
     if (print) {
