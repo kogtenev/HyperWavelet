@@ -867,6 +867,7 @@ void RectangleSurfaceSolver::_printVtk(const Eigen::VectorXcd& x) const {
     for (const auto& rectangle: _mesh.Data()) {
         Eigen::Vector3cd J = x[2*i]*rectangle.e1.cast<complex>() + x[2*i+1]*rectangle.e2.cast<complex>();
         J = rectangle.normal.cast<complex>().cross(J).cross(rectangle.normal.cast<complex>());
+        J /= std::sqrt(rectangle.area);
         fout << J.real() << '\n';
         i++;
     }
@@ -875,6 +876,7 @@ void RectangleSurfaceSolver::_printVtk(const Eigen::VectorXcd& x) const {
     for (const auto& rectangle: _mesh.Data()) {
         Eigen::Vector3cd J = x[2*i]*rectangle.e1.cast<complex>() + x[2*i+1]*rectangle.e2.cast<complex>();
         J = rectangle.normal.cast<complex>().cross(J).cross(rectangle.normal.cast<complex>());
+        J /= std::sqrt(rectangle.area);
         fout << J.imag() << '\n';
         i++;
     }
@@ -1118,17 +1120,17 @@ void SurfaceSolver::EstimateErrors(const Eigen::VectorXcd& exact, const Eigen::V
     Eigen::Vector3cd average;
     average.fill(0.);
     for (int i = 0; i < rectangles.size(); ++i) {
-        normL2 += (std::norm(exact[2*i]) + std::norm(exact[2*i+1])) * rectangles[i].area;
-        errNormL2 += (std::norm(err[2*i]) + std::norm(err[2*i+1])) * rectangles[i].area;
+        normL2 += (std::norm(exact[2*i]) + std::norm(exact[2*i+1])) * std::sqrt(rectangles[i].area);
+        errNormL2 += (std::norm(err[2*i]) + std::norm(err[2*i+1])) * std::sqrt(rectangles[i].area);
     }
     for (int i = 0; i < rectangles.size(); ++i) {
         Eigen::Vector3cd j = exact[2*i] * rectangles[i].e1.cast<complex>() 
             + exact[2*i+1] * rectangles[i].e2.cast<complex>();
         Eigen::Vector3cd j_err = err[2*i] * rectangles[i].e1.cast<complex>() 
             + err[2*i+1] * rectangles[i].e2.cast<complex>();
-        normL1 += j.norm() * rectangles[i].area;
-        errNormL1 += j_err.norm() * rectangles[i].area;
-        average += rectangles[i].area * j_err;
+        normL1 += j.norm() * std::sqrt(rectangles[i].area);
+        errNormL1 += j_err.norm() * std::sqrt(rectangles[i].area);
+        average += std::sqrt(rectangles[i].area) * j_err;
     }
     std::cout << '\n';
     std::cout << "L1-error: " << errNormL1 / normL1 << std::endl;
