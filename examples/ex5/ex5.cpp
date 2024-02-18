@@ -14,23 +14,32 @@ using hyper_wavelet::Profiler;
 using SparseMatrix = Eigen::SparseMatrix<complex<double>>;
 
 int main(int argc, char* argv[]) {
+    if (argc < 6) {
+        std::cout << "Usage: ./ex5 k lambda alpha reg mesh_file [mesh_graph_file]" << std::endl;
+        return 0;
+    }
+
     const double k = stod(argv[1]);
-    const double threshold = stod(argv[2]);
-    const double reg = stod(argv[3]);
-    const string meshFile(argv[4]);
+    const double lambda = stod(argv[2]);
+    const double alpha = stod(argv[3]);
+    const double r = stod(argv[4]);
+    const double reg = stod(argv[5]);
+    const string meshFile(argv[6]);
 
     cout << "Wave number: " << k << endl;
-    cout << "threshold: " << threshold << endl;
+    cout << "alpha  = " << alpha << endl;
+    cout << "lambda = " << alpha << endl;
+    cout << "r = " << r << endl;
     cout << "Mesh file: " << meshFile << endl;
 
     string graphFile;
-    if (argc > 4) {
-        graphFile = string(argv[5]);
+    if (argc > 6) {
+        graphFile = string(argv[7]);
         cout << "Graph file: " << graphFile << endl;
     }
-    cout << endl;
+    cout << '\n';
 
-    SurfaceSolver solver(k, meshFile, graphFile);
+    SurfaceSolver solver(k, alpha, lambda, r, meshFile, graphFile);
     Eigen::MatrixXcd fullRhs(solver.GetDimension(), 181);    
 
     for (int n = 0; n < 181; ++n) {
@@ -63,7 +72,7 @@ int main(int argc, char* argv[]) {
     }
     cout << "Time for solution: " << profiler.Toc() << endl;
 
-    solver.FormMatrixCompressed(threshold, reg);
+    solver.FormMatrixCompressed(reg);
     const auto& truncA = solver.GetTruncatedMatrix();
 
     Eigen::MatrixXcd& dA = const_cast<Eigen::MatrixXcd&>(A);
@@ -76,16 +85,14 @@ int main(int argc, char* argv[]) {
     profiler.Tic();
     Eigen::SparseLU<Eigen::SparseMatrix<complex<double>>> lu(truncA);
     auto _x = lu.solve(fullRhs);
+
     cout << "Time for solution: " << profiler.Toc() << endl;
     cout << "\nPrinting solution" << endl;
     cout << "Rel. error: " << (x - _x).norm() / x.norm() << endl;
 
-    /*solver.WaveletTransformInverse(_x);
-    solver.WaveletTransformInverse(x);
+    /*solver.WaveletTransformInverse(x);
     solver.EstimateErrors(x, _x);
-    solver.PrintSolutionVtk(_x);
-    solver.PrintEsa(x, "esa.txt");
-    solver.PrintEsa(_x, "esa_sparse.txt");*/
+    solver.PrintSolutionVtk(_x);*/
 
     solver.PrintEsaInverse(x, "esa.txt");
     solver.PrintEsaInverse(_x, "esa_sparse.txt");

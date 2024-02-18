@@ -36,6 +36,10 @@ RectangleMesh::RectangleMesh(int nx, int ny,
             _data[nx * j + i] = Rectangle(a, b, c, d);
         }
     }
+    _area = 0.;
+    for (const auto& rectangle: _data) {
+        _area += rectangle.area;
+    }
 }
 
 int ParseIntFromString(std::ifstream& fin, const std::string& prefix) {
@@ -215,7 +219,7 @@ void PrintSubmesh(const std::vector<Rectangle>& rectangles,
     fout.close();
 }
 
-RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& graphFile) {
+RectangleMesh::RectangleMesh(const std::string& meshFile, double r, const std::string& graphFile): r(r) {
     std::ifstream fin(meshFile, std::ios::in);
 
     int npoints = ParseIntFromString(fin, "element vertex ");
@@ -260,6 +264,11 @@ RectangleMesh::RectangleMesh(const std::string& meshFile, const std::string& gra
         _data[i / 4] = Rectangle(a, b, c, d);
     }
     std::cout << "Mesh is ready\n";
+
+    _area = 0.;
+    for (const auto& rectangle: _data) {
+        _area += rectangle.area;
+    }
 
     if (graphFile.size()) {
         std::cout << "Reading mesh dual graph\n";
@@ -363,7 +372,7 @@ void RectangleMesh::FormWaveletMatrix() {
     _PrepareSpheres();
 
     std::cout << "Wavelet matrix is ready" << std::endl;
-    std::cout << "Number of levels: " << level << '\n' << std::endl;
+    std::cout << "Number of levels: " << level - 1 << '\n' << std::endl;
 
     PrintSubmesh(_data, _wmatrix.starts[0],  _wmatrix.ends[0],  "submesh0.vtk");
     PrintSubmesh(_data, _wmatrix.starts[2],  _wmatrix.ends[2],  "submesh2.vtk");
@@ -462,6 +471,7 @@ void RectangleMesh::_PrepareSpheres() {
                 radious = new_radious;
             }
         }
+        radious *= r;
         _wmatrix.spheres[row] = {radious, center};
     }
 }
@@ -917,12 +927,13 @@ inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B) {
 }
 
 SurfaceSolver::SurfaceSolver(
-    double k, 
+    double k, double alpha, 
+    double lambda, double r,
     const std::string& meshFile, 
     const std::string& graphFile
-): RectangleSurfaceSolver(k) {
+): RectangleSurfaceSolver(k), _alpha(alpha), _lambda(lambda) {
 
-    _mesh = RectangleMesh(meshFile, graphFile);
+    _mesh = RectangleMesh(meshFile, r, graphFile);
     _dim = 2 * _mesh.Data().size();
     _mesh.FormWaveletMatrix(); 
 }
@@ -961,7 +972,7 @@ void SurfaceSolver::WaveletTransformInverse(Eigen::VectorXcd& x) const {
     SurphaseWaveletInverse(E1, wmatrix);
 }
 
-void SurfaceSolver::FormMatrixCompressed(double threshold, double reg, bool print) {
+void SurfaceSolver::FormMatrixCompressed(double reg, bool print) {
     Profiler profiler;
 
     const auto& rectangles = _mesh.Data();
@@ -1123,9 +1134,7 @@ double SurfaceSolver::_SuperDistance(int i, int j) const {
 double SurfaceSolver::_epsilon(const WaveletMatrix& wmatrix, int i, int j) {
     int lI = wmatrix.rowLevels[i];
     int lJ = wmatrix.rowLevels[j];
-    double r = wmatrix.spheres[0].radious;
-    double scale = M_PI * r * r;
-    return scale * std::pow(2., _lambda * lI / 3 - _alpha / 3 * (lI + lJ));
+    return _mesh.Area() * std::pow(2., _lambda * lI / 3 - _alpha / 3 * (lI + lJ));
 }
 
 void SurfaceSolver::EstimateErrors(const Eigen::VectorXcd& exact, const Eigen::VectorXcd& approx) {

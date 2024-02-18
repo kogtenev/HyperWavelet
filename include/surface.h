@@ -56,7 +56,7 @@ public:
 
     RectangleMesh() = default;
 
-    RectangleMesh(const std::string& meshFile, const std::string& graphFile = ""); 
+    RectangleMesh(const std::string& meshFile, double r, const std::string& graphFile = ""); 
 
     void HaarTransform();
 
@@ -64,9 +64,12 @@ public:
 
     const std::vector<Rectangle>& Data() const {return _data;};
     const WaveletMatrix& GetWaveletMatrix() const {return _wmatrix;};
+    
+    double Area() const {return _area;}
 
 private:
     std::vector<Rectangle> _data;
+    double _area;
 
     // for rectangle surface solver 
     std::function<Eigen::Vector3d(double, double)> surfaceMap;
@@ -76,6 +79,7 @@ private:
     // for mesh graph in general case
     std::vector<std::pair<int, int>> _graphEdges;
     WaveletMatrix _wmatrix; 
+    double r;
 
     void _PrepareSpheres();
 }; 
@@ -147,11 +151,11 @@ public:
     using RectangleSurfaceSolver::PrintFullMatrix;
     using RectangleSurfaceSolver::GetDimension;
 
-    SurfaceSolver(double k, const std::string& meshFile, const std::string& graphFile = "");
+    SurfaceSolver(double k, double alpha, double lambda, double r, const std::string& meshFile, const std::string& graphFile = "");
     void WaveletTransform();
     void WaveletTransformInverse(Eigen::VectorXcd& x) const;
-    void FormMatrixCompressed(double threshold, double reg = 0., bool print=false);
-    void PrintSolutionVtk(const Eigen::VectorXcd& x) const { _printVtk(x); }
+    void FormMatrixCompressed(double reg = 0., bool print=false);
+    void PrintSolutionVtk(const Eigen::VectorXcd x) const { _printVtk(x); }
     void PrintEsa(const Eigen::VectorXcd& x, const std::string& fname) const;
     void PrintEsaInverse(const Eigen::MatrixXcd& x, const std::string& fname) const;
     void EstimateErrors(const Eigen::VectorXcd& exact, const Eigen::VectorXcd& approx);
