@@ -605,8 +605,7 @@ void RectangleSurfaceSolver::FormFullMatrix() {
     #pragma omp parallel for
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            _fullMatrix.block<2, 2>(2*i, 2*j) = _LocalMatrix(rectangles[j], rectangles[i])
-                * std::sqrt(rectangles[i].area) / std::sqrt(rectangles[j].area);
+            _fullMatrix.block<2, 2>(2*i, 2*j) = _LocalMatrix(rectangles[j], rectangles[i]) / std::sqrt(rectangles[j].area);
         }
     }
     std::cout << "Matrix is formed" << std::endl;
@@ -771,8 +770,8 @@ void RectangleSurfaceSolver::FormRhs(const std::function<Eigen::Vector3cd(const 
         const auto& e1 = rectangles[i].e1.cast<complex>();
         const auto& e2 = rectangles[i].e2.cast<complex>();
         const auto& n =  rectangles[i].normal.cast<complex>();
-        _rhs(2 * i    ) = -n.cross(b).dot(e2) * std::sqrt(rectangles[i].area);
-        _rhs(2 * i + 1) =  n.cross(b).dot(e1) * std::sqrt(rectangles[i].area);
+        _rhs(2 * i    ) = -n.cross(b).dot(e2);
+        _rhs(2 * i + 1) =  n.cross(b).dot(e1);
     }
 }
 
@@ -1097,8 +1096,7 @@ void SurfaceSolver::_formBlockRow(Eigen::MatrixXcd& blockRow, int k) {
     const auto& rectangles = _mesh.Data();
     #pragma omp parallel for
     for (int j = 0; j < _dim / 2; j++) {
-        blockRow.block<2, 2>(0, 2*j) = _LocalMatrix(rectangles[j], rectangles[k])
-            * std::sqrt(rectangles[k].area) / std::sqrt(rectangles[j].area);
+        blockRow.block<2, 2>(0, 2*j) = _LocalMatrix(rectangles[j], rectangles[k]) / std::sqrt(rectangles[j].area);
     }
 
     auto V0 = blockRow.row(0);
