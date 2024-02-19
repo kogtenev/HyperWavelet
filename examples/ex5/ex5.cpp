@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
             const complex<double> i = {0., 1.};
             Eigen::Vector3cd _k, E0;
             _k << k * cos(phi), k * sin(phi), 0.;
-            E0 << -sin(phi), cos(phi), 1.;
+            E0 << -sin(phi), cos(phi), 0.;
             E0 *= exp(i * _k.dot(r.cast<complex<double>>()));
             return E0; 
         };
