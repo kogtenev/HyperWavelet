@@ -61,6 +61,7 @@ public:
     void HaarTransform();
 
     void FormWaveletMatrix();
+    void PrintLocalBases() const;
 
     const std::vector<Rectangle>& Data() const {return _data;};
     const WaveletMatrix& GetWaveletMatrix() const {return _wmatrix;};

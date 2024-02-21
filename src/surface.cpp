@@ -381,6 +381,40 @@ void RectangleMesh::FormWaveletMatrix() {
     PrintSubmesh(_data, _wmatrix.starts[49], _wmatrix.ends[49], "submesh49.vtk");
 }
 
+void RectangleMesh::PrintLocalBases() const {
+std::ofstream fout("local_bases.vtk", std::ios::out);
+    fout << "# vtk DataFile Version 3.0\n";
+    fout << "Surface electric current\n";
+    fout << "ASCII\n";
+    fout << "DATASET POLYDATA\n";
+    const int npoints = Data().size() * 4;
+    const int ncells  = Data().size();
+    fout << "POINTS " << npoints << " double\n";
+    for (const auto& rectangle: Data()) {
+        fout << rectangle.a << '\n' << rectangle.b << '\n' << rectangle.c << '\n' << rectangle.d << '\n';
+    }
+    int i = 0;
+    fout << "POLYGONS " << ncells << ' ' << 5 * ncells << '\n';
+    for (const auto& rectangle: Data()) {
+        fout << "4 " << i << ' ' << i+1 << ' ' << i+2 << ' ' << i+3 << '\n';
+        i += 4; 
+    }
+    fout << "CELL_DATA " << ncells << '\n';
+    fout << "VECTORS e1 double\n";
+    for (const auto& rectangle: Data()) {
+        fout << rectangle.e1 << '\n';
+    }
+    fout << "VECTORS e2 double\n";
+    for (const auto& rectangle: Data()) {
+        fout << rectangle.e2 << '\n';
+    }
+    fout << "VECTORS n double\n";
+    for (const auto& rectangle: Data()) {
+        fout << rectangle.normal << '\n';
+    }
+    fout.close();
+}
+
 void PrepareSupports1D(std::vector<Interval>& intervals, int n) {
     intervals.resize(n);
     intervals[0] = {0., 1.};
@@ -934,6 +968,7 @@ SurfaceSolver::SurfaceSolver(
 ): RectangleSurfaceSolver(k), _alpha(alpha), _lambda(lambda) {
 
     _mesh = RectangleMesh(meshFile, r, graphFile);
+    _mesh.PrintLocalBases();
     _dim = 2 * _mesh.Data().size();
     _mesh.FormWaveletMatrix(); 
 }
