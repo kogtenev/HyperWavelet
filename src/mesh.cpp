@@ -9,6 +9,17 @@
 
 namespace hyper_wavelet_2d {
 
+// By value, not by reference!
+inline bool LinearDependent(Eigen::Vector3d x, Eigen::Vector3d y, Eigen::Vector3d z, double tol = 1e-12) {
+    double zNorm = z.norm();
+    x /= x.norm();
+    y = y - y.dot(x) * x;
+    y /= y.norm();
+    z = z - z.dot(x) * x;
+    z = z - z.dot(y) * y;
+    return z.norm() < zNorm * tol;
+}
+
 RectangleMesh::RectangleMesh(int nx, int ny, 
     const std::function<Eigen::Vector3d(double, double)>& surfaceMap): 
                                     _nx(nx), _ny(ny), surfaceMap(surfaceMap) {
@@ -258,25 +269,23 @@ RectangleMesh::RectangleMesh(const std::string& meshFile, double r, const std::s
         _area += rectangle.area;
     }
 
-    if (graphFile.size()) {
-        std::cout << "Reading mesh dual graph\n";
-        std::string buffer;
-        fin.open(graphFile, std::ios::in);
-        while (std::getline(fin, buffer)) {
-            std::stringstream stream(buffer);
-            int i, j;
-            stream >> i >> j;
-            _graphEdges.push_back({i, j});
-        }
-        std::vector<std::pair<int, int>> edges_reversed(_graphEdges.size());
-        for (int i = 0; i < edges_reversed.size(); ++i) {
-            edges_reversed[i] = {_graphEdges[i].second, _graphEdges[i].first};
-        }
-        _graphEdges.insert(_graphEdges.end(), edges_reversed.begin(), edges_reversed.end());
-        std::sort(_graphEdges.begin(), _graphEdges.end(),
-            [](const auto& a, const auto& b){ return a.first < b.first; });
-        std::cout << "Mesh graph is ready\n\n";
+    std::cout << "Reading mesh dual graph\n";
+    std::string buffer;
+    fin.open(graphFile, std::ios::in);
+    while (std::getline(fin, buffer)) {
+        std::stringstream stream(buffer);
+        int i, j;
+        stream >> i >> j;
+        _graphEdges.push_back({i, j});
     }
+    std::vector<std::pair<int, int>> edges_reversed(_graphEdges.size());
+    for (int i = 0; i < edges_reversed.size(); ++i) {
+        edges_reversed[i] = {_graphEdges[i].second, _graphEdges[i].first};
+    }
+    _graphEdges.insert(_graphEdges.end(), edges_reversed.begin(), edges_reversed.end());
+    std::sort(_graphEdges.begin(), _graphEdges.end(),
+        [](const auto& a, const auto& b){ return a.first < b.first; });
+    std::cout << "Mesh graph is ready\n\n";
 }
 
 void RectangleMesh::FormWaveletMatrix() {

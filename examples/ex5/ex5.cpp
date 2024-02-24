@@ -14,8 +14,8 @@ using hyper_wavelet::Profiler;
 using SparseMatrix = Eigen::SparseMatrix<complex<double>>;
 
 int main(int argc, char* argv[]) {
-    if (argc < 6) {
-        std::cout << "Usage: ./ex5 k lambda alpha reg mesh_file [mesh_graph_file]" << std::endl;
+    if (argc < 7) {
+        std::cout << "Usage: ./ex5 k lambda alpha mesh_file mesh_graph_file" << std::endl;
         return 0;
     }
 
@@ -23,21 +23,15 @@ int main(int argc, char* argv[]) {
     const double lambda = stod(argv[2]);
     const double alpha = stod(argv[3]);
     const double r = stod(argv[4]);
-    const double reg = stod(argv[5]);
-    const string meshFile(argv[6]);
+    const string meshFile(argv[5]);
+    const string graphFile = string(argv[6]);
 
     cout << "Wave number: " << k << endl;
     cout << "alpha  = " << alpha << endl;
     cout << "lambda = " << alpha << endl;
     cout << "r = " << r << endl;
     cout << "Mesh file: " << meshFile << endl;
-
-    string graphFile;
-    if (argc > 6) {
-        graphFile = string(argv[7]);
-        cout << "Graph file: " << graphFile << endl;
-    }
-    cout << '\n';
+    cout << "Graph file: " << graphFile << endl;
 
     SurfaceSolver solver(k, alpha, lambda, r, meshFile, graphFile);
     Eigen::MatrixXcd fullRhs(solver.GetDimension(), 181);    
@@ -72,7 +66,7 @@ int main(int argc, char* argv[]) {
     }
     cout << "Time for solution: " << profiler.Toc() << endl;
 
-    solver.FormMatrixCompressed(reg);
+    solver.FormMatrixCompressed();
     const auto& truncA = solver.GetTruncatedMatrix();
 
     Eigen::MatrixXcd& dA = const_cast<Eigen::MatrixXcd&>(A);

@@ -613,7 +613,7 @@ void SurfaceSolver::WaveletTransformInverse(Eigen::VectorXcd& x) const {
     SurphaseWaveletInverse(E1, wmatrix);
 }
 
-void SurfaceSolver::FormMatrixCompressed(double reg, bool print) {
+void SurfaceSolver::FormMatrixCompressed(bool print) {
     Profiler profiler;
 
     const auto& rectangles = _mesh.Data();
@@ -630,10 +630,10 @@ void SurfaceSolver::FormMatrixCompressed(double reg, bool print) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             if (SphereDistance(wmatrix.spheres[j], wmatrix.spheres[i]) < _epsilon(wmatrix, i, j)) {
-                triplets.push_back({2*i, 2*j, complex(i == j ? reg : 0.)});
+                triplets.push_back({2*i, 2*j, complex(0.)});
                 triplets.push_back({2*i+1, 2*j, complex(0.)});
                 triplets.push_back({2*i, 2*j+1, complex(0.)});
-                triplets.push_back({2*i+1, 2*j+1, complex(i == j ? reg : 0.)});
+                triplets.push_back({2*i+1, 2*j+1, complex(0.)});
                 nnz += 4;
             }
         }
