@@ -49,5 +49,12 @@ void PrintSparsityTable(const Eigen::MatrixBase<T>& matrix) {
     std::cout << std::endl;
 }
 
+class SegmentTree {
+public:
+    SegmentTree(const double a, const double b, int nSegments);
+    int Find(double x) const;
+private:
+    const Eigen::ArrayXd _data;
+};
 
 }

@@ -293,7 +293,7 @@ RectangleMesh::RectangleMesh(
         [](const auto& a, const auto& b){ return a.first < b.first; });
     std::cout << "Mesh graph is ready\n\n";
 
-    if (basisOrientation != "polar_average") {
+    if (basisOrientation != "polar_min_global") {
         std::cout << "Reorient local bases. Orientation: " + basisOrientation << std::endl;
         // Segment tree for polar angles for each normal
     }

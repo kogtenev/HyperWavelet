@@ -14,7 +14,7 @@ using SparseMatrix = Eigen::SparseMatrix<complex<double>>;
 
 int main(int argc, char* argv[]) {
     if (argc < 8) {
-        std::cout << "Usage: ./ex5 k lambda alpha r mesh_file mesh_graph_file basis_orient (random / polar_average)" << std::endl;
+        std::cout << "Usage: ./ex5 k lambda alpha r mesh_file mesh_graph_file basis_orient (random / polar_min_global)" << std::endl;
         return 0;
     }
 
@@ -84,10 +84,6 @@ int main(int argc, char* argv[]) {
     cout << "Time for solution: " << profiler.Toc() << endl;
     cout << "\nPrinting solution" << endl;
     cout << "Rel. error: " << (x - _x).norm() / x.norm() << endl;
-
-    /*solver.WaveletTransformInverse(x);
-    solver.EstimateErrors(x, _x);
-    solver.PrintSolutionVtk(_x);*/
 
     solver.PrintEsaInverse(x, "esa.txt");
     solver.PrintEsaInverse(_x, "esa_sparse.txt");
