@@ -40,11 +40,10 @@ SegmentTree::SegmentTree(
 int SegmentTree::Find(double x) const {
     int length = _data.size() - 1;
     if (x < _data[0] || x > _data[length]) return -1;
-    if (x == _data[0]) return 0;
     int left = 0, right = length;
     while (length > 1) {
-        if (x <= _data[right / 2]) right / 2;
-        else left = right / 2;
+        if (x <= _data[left + length / 2]) right = left + length / 2;
+        else left = left + length / 2;
         length = right - left;
     }
     return left;
