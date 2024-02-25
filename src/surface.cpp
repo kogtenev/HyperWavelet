@@ -567,13 +567,16 @@ inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B) {
 }
 
 SurfaceSolver::SurfaceSolver(
-    double k, double alpha, 
-    double lambda, double r,
+    const double k, 
+    const double alpha, 
+    const double lambda, 
+    const double r,
     const std::string& meshFile, 
-    const std::string& graphFile
-): RectangleSurfaceSolver(k), _alpha(alpha), _lambda(lambda) {
-
-    _mesh = RectangleMesh(meshFile, r, graphFile);
+    const std::string& graphFile,
+    const std::string& basisOrientation
+): RectangleSurfaceSolver(k), _alpha(alpha), _lambda(lambda) 
+{
+    _mesh = RectangleMesh(r, meshFile, graphFile, basisOrientation);
     _mesh.PrintLocalBases();
     _dim = 2 * _mesh.Data().size();
     _mesh.FormWaveletMatrix(); 
@@ -614,6 +617,7 @@ void SurfaceSolver::WaveletTransformInverse(Eigen::VectorXcd& x) const {
 }
 
 void SurfaceSolver::FormMatrixCompressed(bool print) {
+    std::cout << "\nForming truncated matrix" << std::endl;
     Profiler profiler;
 
     const auto& rectangles = _mesh.Data();
@@ -679,12 +683,13 @@ void SurfaceSolver::FormMatrixCompressed(bool print) {
 
     if (print) {
         std::ofstream fout("trunc_mat.txt", std::ios::out);
-        std::cout << "Printing truncated matrix" << '\n';
+        std::cout << "Printing truncated matrix\n";
         for (const auto& triplet: triplets) {
             fout << triplet.col() << ' ' << triplet.row()
                  << ' ' << std::abs(triplet.value()) << '\n';
         }
         fout.close();    
+        std::cout << "Done\n";
     }
     std::cout << '\n';
 }
@@ -727,7 +732,7 @@ double SurfaceSolver::_CalcEsa(const Eigen::VectorXcd& x, double phi) const {
         const double ds = rectangle.area;
         sigma += std::exp(-1i*_k*tau.dot(y)) * _k * _k * ds * 
             (J - J.dot(tau.cast<complex>()) * tau.cast<complex>());
-        i++;
+        ++i;
     }
     return 10. * std::log10(4 * M_PI * sigma.norm() * sigma.norm());
 }

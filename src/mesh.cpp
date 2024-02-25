@@ -218,14 +218,20 @@ void PrintSubmesh(const std::vector<Rectangle>& rectangles,
     fout.close();
 }
 
-RectangleMesh::RectangleMesh(const std::string& meshFile, double r, const std::string& graphFile): r(r) {
+RectangleMesh::RectangleMesh(
+    const double r, 
+    const std::string& meshFile, 
+    const std::string& graphFile,
+    const std::string& basisOrientation
+): r(r) 
+{
     std::ifstream fin(meshFile, std::ios::in);
 
     int npoints = ParseIntFromString(fin, "element vertex ");
     int ncells  = ParseIntFromString(fin, "element face ");
     SkipHeader(fin);
 
-    std::cout << "Reading mesh\n";
+    std::cout << "\nReading mesh\n";
     std::cout << "Number of vertices: " << npoints << '\n';
     std::cout << "Number of faces: " << ncells << '\n';
 
@@ -286,6 +292,11 @@ RectangleMesh::RectangleMesh(const std::string& meshFile, double r, const std::s
     std::sort(_graphEdges.begin(), _graphEdges.end(),
         [](const auto& a, const auto& b){ return a.first < b.first; });
     std::cout << "Mesh graph is ready\n\n";
+
+    if (basisOrientation != "polar_average") {
+        std::cout << "Reorient local bases. Orientation: " + basisOrientation << std::endl;
+        // Segment tree for polar angles for each normal
+    }
 }
 
 void RectangleMesh::FormWaveletMatrix() {

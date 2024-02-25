@@ -16,22 +16,16 @@ int IntPow(int a, int power) {
     return result;
 }
 
-double GetTime() {
-    std::timespec ts;
-    timespec_get(&ts, TIME_UTC);
-    return 1. * ts.tv_sec + 1e-9 * ts.tv_nsec;
-}
-
 Profiler::Profiler() {
-    _time = GetTime();
+    _time = omp_get_wtime();
 }
 
 void Profiler::Tic() {
-    _time = GetTime();
+    _time = omp_get_wtime();
 }
 
 double Profiler::Toc() {
-    return GetTime() - _time;
+    return omp_get_wtime() - _time;
 }
 
 }

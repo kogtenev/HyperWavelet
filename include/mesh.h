@@ -52,11 +52,17 @@ class RectangleMesh {
 public:
     RectangleMesh(
         int nx, int ny, 
-        const std::function<Eigen::Vector3d(double, double)>& surfaceMap);
+        const std::function<Eigen::Vector3d(double, double)>& surfaceMap
+    );
 
     RectangleMesh() = default;
 
-    RectangleMesh(const std::string& meshFile, double r, const std::string& graphFile = ""); 
+    RectangleMesh(
+        const double r, 
+        const std::string& meshFile,
+        const std::string& graphFile,
+        const std::string& basisOrientation
+    ); 
 
     void HaarTransform();
 
@@ -85,6 +91,7 @@ private:
     double r;
 
     void _PrepareSpheres();
+    void _ReoerientBasesPolar(const Eigen::Vector3d& polarLine);
 }; 
 
 }

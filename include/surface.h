@@ -74,7 +74,16 @@ public:
     using RectangleSurfaceSolver::PrintFullMatrix;
     using RectangleSurfaceSolver::GetDimension;
 
-    SurfaceSolver(double k, double alpha, double lambda, double r, const std::string& meshFile, const std::string& graphFile = "");
+    SurfaceSolver(
+        const double k, 
+        const double alpha, 
+        const double lambda, 
+        const double r, 
+        const std::string& meshFile, 
+        const std::string& graphFile,
+        const std::string& basisOrientation
+    );
+    
     void WaveletTransform();
     void WaveletTransformInverse(Eigen::VectorXcd& x) const;
     void FormMatrixCompressed(bool print=false);
