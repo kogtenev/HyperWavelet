@@ -60,8 +60,7 @@ public:
     RectangleMesh(
         const double r, 
         const std::string& meshFile,
-        const std::string& graphFile,
-        const std::string& basisOrientation
+        const std::string& graphFile
     ); 
 
     void HaarTransform();

@@ -13,8 +13,8 @@ using namespace hyper_wavelet_2d;
 using SparseMatrix = Eigen::SparseMatrix<complex<double>>;
 
 int main(int argc, char* argv[]) {
-    if (argc < 8) {
-        std::cout << "Usage: ./ex5 k lambda alpha r mesh_file mesh_graph_file basis_orient (random / polar_min_global)" << std::endl;
+    if (argc < 7) {
+        std::cout << "Usage: ./ex5 k lambda alpha r mesh_file mesh_graph_file" << std::endl;
         return 0;
     }
 
@@ -24,7 +24,6 @@ int main(int argc, char* argv[]) {
     const double r = stod(argv[4]);
     const string meshFile(argv[5]);
     const string graphFile(argv[6]);
-    const string basisOrientation(argv[7]);
 
     cout << "Wave number: " << k << endl;
     cout << "alpha  = " << alpha << endl;
@@ -32,9 +31,8 @@ int main(int argc, char* argv[]) {
     cout << "r = " << r << endl;
     cout << "Mesh file: " << meshFile << endl;
     cout << "Graph file: " << graphFile << endl;
-    cout << "Basis orientation: " << basisOrientation << endl;
 
-    SurfaceSolver solver(k, alpha, lambda, r, meshFile, graphFile, basisOrientation);
+    SurfaceSolver solver(k, alpha, lambda, r, meshFile, graphFile);
     Eigen::MatrixXcd fullRhs(solver.GetDimension(), 181);    
 
     for (int n = 0; n < 181; ++n) {

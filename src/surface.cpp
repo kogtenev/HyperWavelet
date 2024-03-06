@@ -572,11 +572,10 @@ SurfaceSolver::SurfaceSolver(
     const double lambda, 
     const double r,
     const std::string& meshFile, 
-    const std::string& graphFile,
-    const std::string& basisOrientation
+    const std::string& graphFile
 ): RectangleSurfaceSolver(k), _alpha(alpha), _lambda(lambda) 
 {
-    _mesh = RectangleMesh(r, meshFile, graphFile, basisOrientation);
+    _mesh = RectangleMesh(r, meshFile, graphFile);
     _mesh.PrintLocalBases();
     _dim = 2 * _mesh.Data().size();
     _mesh.FormWaveletMatrix(); 

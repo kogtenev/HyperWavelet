@@ -221,8 +221,7 @@ void PrintSubmesh(const std::vector<Rectangle>& rectangles,
 RectangleMesh::RectangleMesh(
     const double r, 
     const std::string& meshFile, 
-    const std::string& graphFile,
-    const std::string& basisOrientation
+    const std::string& graphFile
 ): r(r) 
 {
     std::ifstream fin(meshFile, std::ios::in);
@@ -292,11 +291,6 @@ RectangleMesh::RectangleMesh(
     std::sort(_graphEdges.begin(), _graphEdges.end(),
         [](const auto& a, const auto& b){ return a.first < b.first; });
     std::cout << "Mesh graph is ready\n\n";
-
-    if (basisOrientation != "polar_min_global") {
-        std::cout << "Reorient local bases. Orientation: " + basisOrientation << std::endl;
-        // Segment tree for polar angles for each normal
-    }
 }
 
 void RectangleMesh::FormWaveletMatrix() {
