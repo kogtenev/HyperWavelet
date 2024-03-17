@@ -49,4 +49,30 @@ int SegmentTree::Find(double x) const {
     return left;
 }
 
+void CartesianToSphere(const Eigen::Vector3d& n, double& phi, double& theta) {
+    if (n[2] >= 1.) {
+        phi = 0.;
+        theta = M_PI_2;
+        return;
+    } else if (n[2] <= -1.) {
+        phi = 0.;
+        theta = -M_PI_2;
+        return;
+    }
+    theta = std::asin(n[2]);
+    if (n[0] == 0. && n[1] >= 0.) {
+        phi = M_PI_2;
+        return;
+    } else if (n[0] == 0. && n[1] < 0.) {
+        phi = 3 * M_PI / 2;
+        return;
+    }
+    phi = std::atan(n[1] / n[0]);
+    if ((n[0] >= 0. && n[1] < 0.) || (n[0] < 0. && n[1] <= 0.)) {
+        phi += M_PI;
+    } else if (n[0] < 0. && n[1] > 0) {
+        phi += 2 * M_PI;
+    }
+}
+
 }

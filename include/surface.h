@@ -6,7 +6,6 @@
 
 namespace hyper_wavelet_2d {
 
-
 class RectangleSurfaceSolver {
 public:
     RectangleSurfaceSolver(int nx, int ny, double k, 

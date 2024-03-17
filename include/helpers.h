@@ -4,8 +4,10 @@
 #include <iostream>
 #include <iomanip>
 #include <ctime>
+#include <numeric>
 
 #include <Eigen/Dense>
+#include "metis.h"
 
 namespace hyper_wavelet {
 
@@ -34,7 +36,7 @@ void PrintSparsityTable(const Eigen::MatrixBase<T>& matrix) {
     for (int k = 0; k < 20; ++k) {
         size_t count = 0;
         for (size_t i = 0; i < matrix.rows(); ++i) {
-            for (size_t j = 0; j < matrix.cols(); j++) {
+            for (size_t j = 0; j < matrix.cols(); ++j) {
                 if (std::abs(matrix(i, j)) / norm <= tol) {
                     ++count;
                 }
@@ -56,5 +58,7 @@ public:
 private:
     const Eigen::ArrayXd _data;
 };
+
+void CartesianToSphere(const Eigen::Vector3d& n, double& phi, double& theta);
 
 }

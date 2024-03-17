@@ -6,6 +6,7 @@
 #include <numeric>
 
 #include "mesh.h"
+#include "helpers.h"
 
 namespace hyper_wavelet_2d {
 
@@ -74,24 +75,11 @@ void SkipHeader(std::ifstream& fin, const std::string& stopLine = "end_header") 
     }
 }
 
-void GraphEdgesToCsr(
-    const std::vector<std::pair<int, int>>& edges,
-    std::vector<idx_t>& csr_starts, 
-    std::vector<idx_t>& csr_list) {
-
-    csr_list.reserve(edges.size());
-    for (const auto& edge: edges) {
-        ++csr_starts[edge.first + 1];
-        csr_list.push_back(edge.second);
-    }
-    std::partial_sum(csr_starts.begin(), csr_starts.end(), csr_starts.begin());
-}
-
 void GetPivoting(
     const std::vector<idx_t>& partition, 
     std::map<int, int>& left_pivoting,
-    std::map<int, int>& right_pivoting) {
-    
+    std::map<int, int>& right_pivoting
+) {    
     std::vector<int> left_piv_inverse, right_piv_inverse;
     for (int i = 0; i < partition.size(); ++i) {
         if (partition[i] == 0) {
@@ -108,12 +96,25 @@ void GetPivoting(
     }
 }
 
+void GraphEdgesToCsr(
+    const std::vector<std::pair<int, int>>& edges,
+    std::vector<idx_t>& csr_starts, 
+    std::vector<idx_t>& csr_list
+) {
+    csr_list.reserve(edges.size());
+    for (const auto& edge: edges) {
+        ++csr_starts[edge.first + 1];
+        csr_list.push_back(edge.second);
+    }
+    std::partial_sum(csr_starts.begin(), csr_starts.end(), csr_starts.begin());
+}
+
 void SplitEdges(
     const std::vector<std::pair<int, int>>& edges,
     const std::vector<idx_t>& partition,
     std::vector<std::pair<int, int>>& left_part,
-    std::vector<std::pair<int, int>>& right_part) {
-
+    std::vector<std::pair<int, int>>& right_part
+) {
     for (const auto& edge: edges) {
         if (partition[edge.first] == 0 and partition[edge.second] == 0) {
             left_part.push_back(edge);
@@ -123,12 +124,71 @@ void SplitEdges(
     }
 }
 
+void SplitEdges(
+    const std::vector<std::pair<int, int>>& edges,
+    const std::vector<idx_t>& partition,
+    std::vector<std::vector<std::pair<int, int>>>& parts
+) {
+    const int num_parts = *std::max_element(partition.begin(), partition.end());
+    parts.resize(num_parts);
+    for (const auto& edge: edges) {
+        if (partition[edge.first] == partition[edge.second]) {
+            parts[partition[edge.first]].push_back(edge);
+        }
+    }
+}
+
+void BreadthFirstSearch(
+    const int start_vertex,
+    const int visit_marker,
+    const std::vector<idx_t>& csr_starts,
+    const std::vector<idx_t>& csr_list, 
+    std::vector<idx_t>& visited,
+    int& not_visited
+) {
+    not_visited = 0;
+    std::vector<idx_t> active_set = {start_vertex};
+    while (active_set.size()) {
+        std::vector<idx_t> new_set;
+        for (int vertex: active_set) {
+            visited[vertex] = visit_marker;
+            if (not_visited == vertex) {
+                ++not_visited;
+            }
+            for (int j = csr_starts[vertex]; j < csr_starts[vertex+1]; ++j) {
+                if (!visited[csr_list[j]]) {
+                    new_set.push_back(csr_list[j]);
+                }
+            }
+            active_set = std::move(new_set);
+        }
+    } 
+}
+
+void GetConnectedComponents(
+    const int nvertices,
+    const std::vector<std::pair<int, int>>& edges,
+    std::vector<idx_t>& partition,
+    std::vector<std::vector<std::pair<int, int>>>& parts
+) {
+    std::vector<idx_t> csr_starts(nvertices, 0), csr_list;
+    GraphEdgesToCsr(edges, csr_starts, csr_list);
+    int start_vertex = 0, visit_marker = 1;
+    partition.resize(nvertices, 0);
+    while (start_vertex < nvertices) {
+        int not_visited;
+        BreadthFirstSearch(start_vertex, visit_marker, csr_starts, csr_list, partition, not_visited);
+        start_vertex = not_visited;
+        ++visit_marker;
+    }   
+}
+
 void RenumberVertices(
     std::vector<std::pair<int, int>>& edges,
-    const std::map<int, int>& mesh_pivoting) {
-    
+    const std::map<int, int>& mesh_pivoting
+) {    
     for (int i = 0; i < edges.size(); ++i) {
-        edges[i].first = mesh_pivoting.at(edges[i].first);
+        edges[i].first  = mesh_pivoting.at(edges[i].first);
         edges[i].second = mesh_pivoting.at(edges[i].second);
     }
 }
@@ -136,24 +196,24 @@ void RenumberVertices(
 void ReorderMesh(
     int start,
     const std::vector<idx_t>& partition, 
-    std::vector<Rectangle>& rectangles) {
-
+    std::vector<Rectangle>& rectangles
+) {
     Rectangle* const data = &rectangles[start];
     std::vector<Rectangle> left_buffer, right_buffer;
     for (int i = 0; i < partition.size(); ++i) {
         if (partition[i] == 0) {
-            left_buffer.push_back(std::move(data[i]));
+            left_buffer.push_back(data[i]);
         } else {
-            right_buffer.push_back(std::move(data[i]));
+            right_buffer.push_back(data[i]);
         }
     }
     int i = 0;
     for (auto& rect: left_buffer) {
-        data[i] = std::move(rect);
+        data[i] = rect;
         ++i;
     }
     for (auto& rect: right_buffer) {
-        data[i] = std::move(rect);
+        data[i] = rect;
         ++i;
     } 
 }
@@ -171,8 +231,8 @@ int GetDiameter(const std::vector<int>& barriers) {
 void Call_METIS(
     const std::vector<idx_t>& csr_starts, 
     const std::vector<idx_t>& csr_list, 
-    std::vector<idx_t>& partition) {
-
+    std::vector<idx_t>& partition
+) {
     idx_t nvtxs = csr_starts.size() - 1, ncon = 1, nparts = 2, objval;
     idx_t options[METIS_NOPTIONS];
     METIS_SetDefaultOptions(options);
