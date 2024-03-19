@@ -171,7 +171,7 @@ void GetConnectedComponents(
     std::vector<idx_t>& partition,
     std::vector<std::vector<std::pair<int, int>>>& parts
 ) {
-    std::vector<idx_t> csr_starts(nvertices, 0), csr_list;
+    std::vector<idx_t> csr_starts(nvertices+1, 0), csr_list;
     GraphEdgesToCsr(edges, csr_starts, csr_list);
     int start_vertex = 0, visit_marker = 1;
     partition.resize(nvertices, 0);
@@ -180,7 +180,8 @@ void GetConnectedComponents(
         BreadthFirstSearch(start_vertex, visit_marker, csr_starts, csr_list, partition, not_visited);
         start_vertex = not_visited;
         ++visit_marker;
-    }   
+    }
+    SplitEdges(edges, partition, parts);   
 }
 
 void RenumberVertices(
