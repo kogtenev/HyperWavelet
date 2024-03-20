@@ -48,6 +48,13 @@ struct WaveletMatrix {
     std::vector<Sphere> spheres;
 };
 
+void GetConnectedComponents(
+    const int nvertices,
+    const std::vector<std::pair<int, int>>& edges,
+    std::vector<idx_t>& partition,
+    std::vector<std::vector<std::pair<int, int>>>& parts
+);
+
 class RectangleMesh {
 public:
     RectangleMesh(

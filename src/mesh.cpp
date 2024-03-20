@@ -4,6 +4,7 @@
 #include <vector>
 #include <complex>
 #include <numeric>
+#include <queue>
 
 #include "mesh.h"
 #include "helpers.h"
@@ -130,7 +131,7 @@ void SplitEdges(
     std::vector<std::vector<std::pair<int, int>>>& parts
 ) {
     const int num_parts = *std::max_element(partition.begin(), partition.end());
-    parts.resize(num_parts);
+    parts.resize(num_parts+1);
     for (const auto& edge: edges) {
         if (partition[edge.first] == partition[edge.second]) {
             parts[partition[edge.first]].push_back(edge);
@@ -146,21 +147,21 @@ void BreadthFirstSearch(
     std::vector<idx_t>& visited,
     int& not_visited
 ) {
-    not_visited = 0;
-    std::vector<idx_t> active_set = {start_vertex};
+    not_visited = start_vertex;
+    std::queue<idx_t> active_set;
+    active_set.push(start_vertex);
+    visited[start_vertex] = visit_marker;
     while (active_set.size()) {
-        std::vector<idx_t> new_set;
-        for (int vertex: active_set) {
-            visited[vertex] = visit_marker;
-            if (not_visited == vertex) {
-                ++not_visited;
+        int vertex = active_set.front();
+        active_set.pop();
+        if (not_visited == vertex) {
+            ++not_visited;
+        }
+        for (int j = csr_starts[vertex]; j < csr_starts[vertex+1]; ++j) {
+            if (!visited[csr_list[j]]) {
+                active_set.push(csr_list[j]);
+                visited[csr_list[j]] = visit_marker;
             }
-            for (int j = csr_starts[vertex]; j < csr_starts[vertex+1]; ++j) {
-                if (!visited[csr_list[j]]) {
-                    new_set.push_back(csr_list[j]);
-                }
-            }
-            active_set = std::move(new_set);
         }
     } 
 }
@@ -174,14 +175,14 @@ void GetConnectedComponents(
     std::vector<idx_t> csr_starts(nvertices+1, 0), csr_list;
     GraphEdgesToCsr(edges, csr_starts, csr_list);
     int start_vertex = 0, visit_marker = 1;
-    partition.resize(nvertices, 0);
+    partition.assign(nvertices, 0);
+    int not_visited = 0;
     while (start_vertex < nvertices) {
-        int not_visited;
         BreadthFirstSearch(start_vertex, visit_marker, csr_starts, csr_list, partition, not_visited);
         start_vertex = not_visited;
         ++visit_marker;
     }
-    SplitEdges(edges, partition, parts);   
+    SplitEdges(edges, partition, parts);  
 }
 
 void RenumberVertices(
