@@ -9,18 +9,11 @@
 #include "mesh.h"
 #include "helpers.h"
 
+using hyper_wavelet::SegmentTree;
+using hyper_wavelet::CartesianToSphere;
+
 namespace hyper_wavelet_2d {
 
-// By value, not by reference!
-inline bool LinearDependent(Eigen::Vector3d x, Eigen::Vector3d y, Eigen::Vector3d z, double tol = 1e-12) {
-    double zNorm = z.norm();
-    x /= x.norm();
-    y = y - y.dot(x) * x;
-    y /= y.norm();
-    z = z - z.dot(x) * x;
-    z = z - z.dot(y) * y;
-    return z.norm() < zNorm * tol;
-}
 
 RectangleMesh::RectangleMesh(int nx, int ny, 
     const std::function<Eigen::Vector3d(double, double)>& surfaceMap): 
@@ -257,6 +250,30 @@ void Call_METIS(
             std::cout << "Strange METIS output!\n";
     }
 }
+
+void RectangleMesh::_ReoerientLocalBases(const int begin, const int end) {
+    const int numPhi = 18, numTheta = 9;
+    SegmentTree Phi(0, 2 * M_PI, numPhi);
+    SegmentTree Theta(-M_PI_2, M_PI_2, numTheta);
+    Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic> directionIsUsed(numPhi, numTheta);
+    directionIsUsed.fill(false);
+    for (int i = begin; i < end; ++i) {
+        double phi, theta;
+        CartesianToSphere(_data[i].normal, phi, theta);
+        int k = Phi.Find(phi);
+        int l = Theta.Find(theta);
+        directionIsUsed(k, l) = true;
+        directionIsUsed(numPhi - k, l) = true;
+        if (l == 0 || l == numTheta - 1) {
+            for (int j = 0; j < numPhi; ++j) {
+                directionIsUsed(j, l) = true;
+            }
+        }
+    }
+    
+}
+
+
 
 void PrintSubmesh(const std::vector<Rectangle>& rectangles, 
         int start, int finish, const std::string& fileName) {

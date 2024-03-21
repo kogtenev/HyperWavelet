@@ -75,4 +75,20 @@ void CartesianToSphere(const Eigen::Vector3d& n, double& phi, double& theta) {
     }
 }
 
+Hedgehog::Hedgehog(const Eigen::Vector3d& pole): e3(pole) {
+    const double norm = std::sqrt(e3[0] * e3[0] + e3[1] * e3[1]);
+    if (norm > eps) {
+        e1 << -e3[1], e3[0], 0.;
+        e1 /= norm;
+    } else {
+        e1 << 1., 0., 0.;
+    }
+    e2 = e3.cross(e1);
+}
+
+Eigen::Vector3d Hedgehog::Comb(const Eigen::Vector3d& n) {
+    Eigen::Vector3d tau = e2 - n.dot(e1) * n + e1.cross(n);
+    return tau / tau.norm(); 
+}
+
 }

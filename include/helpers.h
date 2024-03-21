@@ -61,4 +61,15 @@ private:
 
 void CartesianToSphere(const Eigen::Vector3d& n, double& phi, double& theta);
 
+class Hedgehog {
+public:
+    Hedgehog(const Eigen::Vector3d& pole);
+    Eigen::Vector3d Comb(const Eigen::Vector3d& n);
+
+private:
+    Eigen::Vector3d e1, e2, e3;
+    const double eps = 1e-14;
+
+};
+
 }

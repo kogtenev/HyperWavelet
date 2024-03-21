@@ -97,7 +97,7 @@ private:
     double r;
 
     void _PrepareSpheres();
-    void _ReoerientBasesPolar(const Eigen::Vector3d& polarLine);
+    void _ReoerientLocalBases(const int begin, const int end);
 }; 
 
 }
