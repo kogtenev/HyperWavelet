@@ -11,6 +11,8 @@
 
 using hyper_wavelet::SegmentTree;
 using hyper_wavelet::CartesianToSphere;
+using hyper_wavelet::DistanceToTrue;
+using hyper_wavelet::Hedgehog;
 
 namespace hyper_wavelet_2d {
 
@@ -263,17 +265,33 @@ void RectangleMesh::_ReoerientLocalBases(const int begin, const int end) {
         int k = Phi.Find(phi);
         int l = Theta.Find(theta);
         directionIsUsed(k, l) = true;
-        directionIsUsed(numPhi - k, l) = true;
+        directionIsUsed(numPhi - k - 1, l) = true;
         if (l == 0 || l == numTheta - 1) {
             for (int j = 0; j < numPhi; ++j) {
                 directionIsUsed(j, l) = true;
             }
         }
     }
-    
+    int maxDist = 0, phiOpt = -1, thetaOpt = -1;
+    for (int i = 0; i < numPhi; ++i) {
+        for (int j = 0; j < numTheta; ++j) {
+            int newDist = DistanceToTrue(i, j, directionIsUsed);
+            if (newDist > maxDist) {
+                maxDist = newDist;
+                phiOpt = i;
+                thetaOpt = j;
+            }
+        }
+    }
+    if (maxDist == 0) {
+        throw std::runtime_error("Cannot comb the hedgehog!");
+    }
+    Hedgehog hedgehog(Phi.Median(phiOpt), Theta.Median(thetaOpt));
+    for (int i = begin; i < end; ++i) {
+        _data[i].e1 = hedgehog.Comb(_data[i].normal);
+        _data[i].e2 = _data[i].normal.cross(_data[i].e1);
+    }
 }
-
-
 
 void PrintSubmesh(const std::vector<Rectangle>& rectangles, 
         int start, int finish, const std::string& fileName) {
@@ -293,6 +311,19 @@ void PrintSubmesh(const std::vector<Rectangle>& rectangles,
     fout << "POLYGONS " << ncells << ' ' << 5 * ncells << '\n';
     for (int i = 0; i < npoints; i += 4) {
         fout << "4 " << i << ' ' << i+1 << ' ' << i+2 << ' ' << i+3 << '\n';
+    }
+    fout << "CELL_DATA " << ncells << '\n';
+    fout << "VECTORS e1 double\n";
+    for (int i = start; i < finish; ++i) {
+        fout << rectangles[i].e1 << '\n';
+    }
+    fout << "VECTORS e2 double\n";
+    for (int i = start; i < finish; ++i) {
+        fout << rectangles[i].e2 << '\n';
+    }
+    fout << "VECTORS n double\n";
+    for (int i = start; i < finish; ++i) {
+        fout << rectangles[i].normal << '\n';
     }
     fout.close();
 }
@@ -451,49 +482,16 @@ void RectangleMesh::FormWaveletMatrix() {
     }
 
     _PrepareSpheres();
+    _ReoerientLocalBases(_wmatrix.starts[1], _wmatrix.ends[1]);
+    _ReoerientLocalBases(_wmatrix.starts[2], _wmatrix.ends[2]);
     _levels = level - 1;
 
     std::cout << "Wavelet matrix is ready" << std::endl;
     std::cout << "Number of levels: " << level - 1 << '\n' << std::endl;
 
-    PrintSubmesh(_data, _wmatrix.starts[0],  _wmatrix.ends[0],  "submesh0.vtk");
+    PrintSubmesh(_data, _wmatrix.starts[1],  _wmatrix.ends[1],  "submesh1.vtk");
     PrintSubmesh(_data, _wmatrix.starts[2],  _wmatrix.ends[2],  "submesh2.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[8],  _wmatrix.ends[8],  "submesh8.vtk");
     PrintSubmesh(_data, _wmatrix.starts[49], _wmatrix.ends[49], "submesh49.vtk");
-}
-
-void RectangleMesh::PrintLocalBases() const {
-std::ofstream fout("local_bases.vtk", std::ios::out);
-    fout << "# vtk DataFile Version 3.0\n";
-    fout << "Surface electric current\n";
-    fout << "ASCII\n";
-    fout << "DATASET POLYDATA\n";
-    const int npoints = Data().size() * 4;
-    const int ncells  = Data().size();
-    fout << "POINTS " << npoints << " double\n";
-    for (const auto& rectangle: Data()) {
-        fout << rectangle.a << '\n' << rectangle.b << '\n' << rectangle.c << '\n' << rectangle.d << '\n';
-    }
-    int i = 0;
-    fout << "POLYGONS " << ncells << ' ' << 5 * ncells << '\n';
-    for (const auto& rectangle: Data()) {
-        fout << "4 " << i << ' ' << i+1 << ' ' << i+2 << ' ' << i+3 << '\n';
-        i += 4; 
-    }
-    fout << "CELL_DATA " << ncells << '\n';
-    fout << "VECTORS e1 double\n";
-    for (const auto& rectangle: Data()) {
-        fout << rectangle.e1 << '\n';
-    }
-    fout << "VECTORS e2 double\n";
-    for (const auto& rectangle: Data()) {
-        fout << rectangle.e2 << '\n';
-    }
-    fout << "VECTORS n double\n";
-    for (const auto& rectangle: Data()) {
-        fout << rectangle.normal << '\n';
-    }
-    fout.close();
 }
 
 }

@@ -576,7 +576,6 @@ SurfaceSolver::SurfaceSolver(
 ): RectangleSurfaceSolver(k), _alpha(alpha), _lambda(lambda) 
 {
     _mesh = RectangleMesh(r, meshFile, graphFile);
-    _mesh.PrintLocalBases();
     _dim = 2 * _mesh.Data().size();
     _mesh.FormWaveletMatrix(); 
 }

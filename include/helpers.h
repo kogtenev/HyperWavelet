@@ -55,6 +55,7 @@ class SegmentTree {
 public:
     SegmentTree(const double a, const double b, int nSegments);
     int Find(double x) const;
+    double Median(int i) { return (_data[i] + _data[i+1]) / 2; }
 private:
     const Eigen::ArrayXd _data;
 };
@@ -63,7 +64,7 @@ void CartesianToSphere(const Eigen::Vector3d& n, double& phi, double& theta);
 
 class Hedgehog {
 public:
-    Hedgehog(const Eigen::Vector3d& pole);
+    Hedgehog(const double phi, const double theta);
     Eigen::Vector3d Comb(const Eigen::Vector3d& n);
 
 private:
@@ -71,5 +72,7 @@ private:
     const double eps = 1e-14;
 
 };
+
+int DistanceToTrue(const int row, const int col, const Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic>& array);
 
 }

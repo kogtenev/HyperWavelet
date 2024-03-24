@@ -75,7 +75,10 @@ void CartesianToSphere(const Eigen::Vector3d& n, double& phi, double& theta) {
     }
 }
 
-Hedgehog::Hedgehog(const Eigen::Vector3d& pole): e3(pole) {
+Hedgehog::Hedgehog(const double phi, const double theta) {
+    e3[0] = std::cos(phi) * std::cos(theta);
+    e3[1] = std::sin(phi) * std::cos(theta);
+    e3[2] = std::sin(theta);
     const double norm = std::sqrt(e3[0] * e3[0] + e3[1] * e3[1]);
     if (norm > eps) {
         e1 << -e3[1], e3[0], 0.;
@@ -87,8 +90,24 @@ Hedgehog::Hedgehog(const Eigen::Vector3d& pole): e3(pole) {
 }
 
 Eigen::Vector3d Hedgehog::Comb(const Eigen::Vector3d& n) {
-    Eigen::Vector3d tau = e2 - n.dot(e1) * n + e1.cross(n);
+    Eigen::Vector3d tau = e2 - n.dot(e2) * n + e1.cross(n);
     return tau / tau.norm(); 
+}
+
+int DistanceToTrue(
+    const int row, const int col, 
+    const Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic>& array
+) {
+    int distance = std::numeric_limits<int>::max();
+    for (int i = 0; i < array.rows(); ++i) {
+        for (int j = 0; j < array.cols(); ++j) {
+            if (array(i, j)) {
+                int new_distance = std::max(std::abs(i - row), std::abs(j - col));
+                distance = std::min(distance, new_distance);
+            }
+        }
+    }
+    return distance;
 }
 
 }
