@@ -245,7 +245,7 @@ void RectangleSurfaceSolver::FormFullMatrix() {
     #pragma omp parallel for
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            _fullMatrix.block<2, 2>(2*i, 2*j) = _LocalMatrix(rectangles[j], rectangles[i]) / std::sqrt(rectangles[j].area);
+            _fullMatrix.block<2, 2>(2*i, 2*j) = _LocalMatrix(rectangles[j], rectangles[i]) / rectangles[j].area;
         }
     }
     std::cout << "Matrix is formed" << std::endl;
@@ -559,7 +559,6 @@ double RectangleSurfaceSolver::_CalcEsa(const Eigen::VectorXcd& x, double phi) c
     return 10. * std::log10(4 * M_PI * sigma.norm() * sigma.norm());
 }
 
-
 inline double PlaneParRectDist(const Rectangle& A, const Rectangle& B) {
     const double dx = Distance({A.a[0], A.b[0]}, {B.a[0], B.b[0]});
     const double dy = Distance({A.b[1], A.c[1]}, {B.b[1], B.c[1]});
@@ -615,7 +614,7 @@ void SurfaceSolver::WaveletTransformInverse(Eigen::VectorXcd& x) const {
 }
 
 void SurfaceSolver::FormMatrixCompressed(bool print) {
-    std::cout << "\nForming truncated matrix" << std::endl;
+    std::cout << "Forming truncated matrix" << std::endl;
     Profiler profiler;
 
     const auto& rectangles = _mesh.Data();

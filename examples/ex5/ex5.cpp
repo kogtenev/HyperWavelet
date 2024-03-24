@@ -50,13 +50,25 @@ int main(int argc, char* argv[]) {
         fullRhs.col(n) = solver.GetRhs();
     }
 
+    solver.FormMatrixCompressed();
+    const auto& truncA = solver.GetTruncatedMatrix();
+
+    Profiler profiler;
+    Eigen::MatrixXcd _x(fullRhs.rows(), fullRhs.cols());
+    {   
+        cout << "Solving truncated system" << endl;
+        Eigen::SparseLU<Eigen::SparseMatrix<complex<double>>> lu(truncA);
+        _x = lu.solve(fullRhs);
+        cout << "Time for solution: " << profiler.Toc() << '\n' << endl;
+    }
+    solver.PrintEsaInverse(_x, "esa_sparse.txt");
+
     solver.FormFullMatrix();
     const auto& A = solver.GetFullMatrix();
 
     cout << "Applying wavelet transform" << endl;
     solver.WaveletTransform();
 
-    Profiler profiler;
     cout << "Solving full linear system" << endl; 
     Eigen::MatrixXcd x(fullRhs.rows(), fullRhs.cols());
     {
@@ -65,26 +77,15 @@ int main(int argc, char* argv[]) {
     }
     cout << "Time for solution: " << profiler.Toc() << endl;
 
-    solver.FormMatrixCompressed();
-    const auto& truncA = solver.GetTruncatedMatrix();
-
     Eigen::MatrixXcd& dA = const_cast<Eigen::MatrixXcd&>(A);
     const double normA = dA.norm();
     dA -= truncA;
     const double errNorm = dA.norm();
     cout << "Relative error for matrices: " << errNorm / normA << '\n' << endl;
 
-    cout << "Solving truncated system" << endl;
-    profiler.Tic();
-    Eigen::SparseLU<Eigen::SparseMatrix<complex<double>>> lu(truncA);
-    auto _x = lu.solve(fullRhs);
-
-    cout << "Time for solution: " << profiler.Toc() << endl;
-    cout << "\nPrinting solution" << endl;
     cout << "Rel. error: " << (x - _x).norm() / x.norm() << endl;
 
     solver.PrintEsaInverse(x, "esa.txt");
-    solver.PrintEsaInverse(_x, "esa_sparse.txt");
     cout << "Done" << endl;
 
     return 0;
