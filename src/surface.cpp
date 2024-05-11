@@ -245,7 +245,7 @@ void RectangleSurfaceSolver::FormFullMatrix() {
     #pragma omp parallel for
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            _fullMatrix.block<2, 2>(2*i, 2*j) = _LocalMatrix(rectangles[j], rectangles[i]) / rectangles[j].area;
+            _fullMatrix.block<2, 2>(2*i, 2*j) = _LocalMatrix(rectangles[j], rectangles[i]) / std::sqrt(rectangles[j].area);
         }
     }
     std::cout << "Matrix is formed" << std::endl;

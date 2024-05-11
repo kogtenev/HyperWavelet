@@ -134,52 +134,6 @@ void SplitEdges(
     }
 }
 
-void BreadthFirstSearch(
-    const int start_vertex,
-    const int visit_marker,
-    const std::vector<idx_t>& csr_starts,
-    const std::vector<idx_t>& csr_list, 
-    std::vector<idx_t>& visited,
-    int& not_visited
-) {
-    not_visited = start_vertex;
-    std::queue<idx_t> active_set;
-    active_set.push(start_vertex);
-    visited[start_vertex] = visit_marker;
-    while (active_set.size()) {
-        int vertex = active_set.front();
-        active_set.pop();
-        if (not_visited == vertex) {
-            ++not_visited;
-        }
-        for (int j = csr_starts[vertex]; j < csr_starts[vertex+1]; ++j) {
-            if (!visited[csr_list[j]]) {
-                active_set.push(csr_list[j]);
-                visited[csr_list[j]] = visit_marker;
-            }
-        }
-    } 
-}
-
-void GetConnectedComponents(
-    const int nvertices,
-    const std::vector<std::pair<int, int>>& edges,
-    std::vector<idx_t>& partition,
-    std::vector<std::vector<std::pair<int, int>>>& parts
-) {
-    std::vector<idx_t> csr_starts(nvertices+1, 0), csr_list;
-    GraphEdgesToCsr(edges, csr_starts, csr_list);
-    int start_vertex = 0, visit_marker = 1;
-    partition.assign(nvertices, 0);
-    int not_visited = 0;
-    while (start_vertex < nvertices) {
-        BreadthFirstSearch(start_vertex, visit_marker, csr_starts, csr_list, partition, not_visited);
-        start_vertex = not_visited;
-        ++visit_marker;
-    }
-    SplitEdges(edges, partition, parts);  
-}
-
 void RenumberVertices(
     std::vector<std::pair<int, int>>& edges,
     const std::map<int, int>& mesh_pivoting
