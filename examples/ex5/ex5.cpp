@@ -10,11 +10,9 @@ using namespace std;
 using namespace hyper_wavelet;
 using namespace hyper_wavelet_2d;
 
-using SparseMatrix = Eigen::SparseMatrix<complex<double>>;
-
 int main(int argc, char* argv[]) {
-    if (argc < 7) {
-        std::cout << "Usage: ./ex5 k lambda alpha r mesh_file mesh_graph_file" << std::endl;
+    if (argc < 5) {
+        std::cout << "Usage: ./ex5 k lambda alpha r" << std::endl;
         return 0;
     }
 
@@ -22,17 +20,13 @@ int main(int argc, char* argv[]) {
     const double lambda = stod(argv[2]);
     const double alpha = stod(argv[3]);
     const double r = stod(argv[4]);
-    const string meshFile(argv[5]);
-    const string graphFile(argv[6]);
 
     cout << "Wave number: " << k << endl;
     cout << "alpha  = " << alpha << endl;
     cout << "lambda = " << alpha << endl;
     cout << "r = " << r << endl;
-    cout << "Mesh file: " << meshFile << endl;
-    cout << "Graph file: " << graphFile << endl;
 
-    SurfaceSolver solver(k, alpha, lambda, r, meshFile, graphFile);
+    SurfaceSolver solver(k, alpha, lambda, r);
     Eigen::MatrixXcd fullRhs(solver.GetDimension(), 181);    
 
     for (int n = 0; n < 181; ++n) {
@@ -70,6 +64,7 @@ int main(int argc, char* argv[]) {
     solver.WaveletTransform();
 
     cout << "Solving full linear system" << endl; 
+    profiler.Tic();
     Eigen::MatrixXcd x(fullRhs.rows(), fullRhs.cols());
     {
         Eigen::PartialPivLU<Eigen::MatrixXcd> lu(A);

@@ -282,13 +282,8 @@ void PrintSubmesh(const std::vector<Rectangle>& rectangles,
     fout.close();
 }
 
-RectangleMesh::RectangleMesh(
-    const double r, 
-    const std::string& meshFile, 
-    const std::string& graphFile
-): r(r) 
-{
-    std::ifstream fin(meshFile, std::ios::in);
+RectangleMesh::RectangleMesh(const double r): r(r) {
+    std::ifstream fin("mesh.ply", std::ios::in);
 
     int npoints = ParseIntFromString(fin, "element vertex ");
     int ncells  = ParseIntFromString(fin, "element face ");
@@ -340,7 +335,7 @@ RectangleMesh::RectangleMesh(
 
     std::cout << "Reading mesh dual graph\n";
     std::string buffer;
-    fin.open(graphFile, std::ios::in);
+    fin.open("graph.txt", std::ios::in);
     while (std::getline(fin, buffer)) {
         std::stringstream stream(buffer);
         int i, j;

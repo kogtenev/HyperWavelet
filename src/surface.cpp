@@ -569,12 +569,10 @@ SurfaceSolver::SurfaceSolver(
     const double k, 
     const double alpha, 
     const double lambda, 
-    const double r,
-    const std::string& meshFile, 
-    const std::string& graphFile
+    const double r
 ): RectangleSurfaceSolver(k), _alpha(alpha), _lambda(lambda) 
 {
-    _mesh = RectangleMesh(r, meshFile, graphFile);
+    _mesh = RectangleMesh(r);
     _dim = 2 * _mesh.Data().size();
     _mesh.FormWaveletMatrix(); 
 }

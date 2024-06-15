@@ -57,18 +57,11 @@ void GetConnectedComponents(
 
 class RectangleMesh {
 public:
-    RectangleMesh(
-        int nx, int ny, 
-        const std::function<Eigen::Vector3d(double, double)>& surfaceMap
-    );
+    RectangleMesh(int nx, int ny, const std::function<Eigen::Vector3d(double, double)>& surfaceMap);
 
     RectangleMesh() = default;
 
-    RectangleMesh(
-        const double r, 
-        const std::string& meshFile,
-        const std::string& graphFile
-    ); 
+    RectangleMesh(const double r); 
 
     void HaarTransform();
 

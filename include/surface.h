@@ -73,14 +73,7 @@ public:
     using RectangleSurfaceSolver::PrintFullMatrix;
     using RectangleSurfaceSolver::GetDimension;
 
-    SurfaceSolver(
-        const double k, 
-        const double alpha, 
-        const double lambda, 
-        const double r, 
-        const std::string& meshFile, 
-        const std::string& graphFile
-    );
+    SurfaceSolver(const double k, const double alpha, const double lambda, const double r);
     
     void WaveletTransform();
     void WaveletTransformInverse(Eigen::VectorXcd& x) const;

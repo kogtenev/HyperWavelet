@@ -1,4 +1,5 @@
 import sys
+import os
 import numpy as np
 import pymesh
 
@@ -19,11 +20,14 @@ def read_mesh(fname):
     return pymesh.form_mesh(points, cells)
     
     
-fname = str(sys.argv[1])
+input_mesh = str(sys.argv[1])
+output_folder = str(sys.argv[2])
 
-mesh = read_mesh(fname)
+os.mkdir(output_folder)
+
+mesh = read_mesh(input_mesh)
 mesh, info = pymesh.remove_duplicated_vertices(mesh, 1e-5)
-pymesh.save_mesh('mesh.ply', mesh, ascii=True)
+pymesh.save_mesh(os.path.join(output_folder, 'mesh.ply'), mesh, ascii=True)
 
 graph = pymesh.mesh_to_dual_graph(mesh)
-np.savetxt('mesh_dual_graph_edges.txt', graph[1], fmt='%s')
+np.savetxt(os.path.join(output_folder, 'graph.txt'), graph[1], fmt='%s')
