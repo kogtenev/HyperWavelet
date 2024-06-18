@@ -32,9 +32,9 @@ RectangleMesh::RectangleMesh(int nx, int ny,
             _data[nx * j + i] = Rectangle(a, b, c, d);
         }
     }
-    _area = 0.;
+    _fullArea = 0.;
     for (const auto& rectangle: _data) {
-        _area += rectangle.area;
+        _fullArea += rectangle.area;
     }
 }
 
@@ -207,7 +207,7 @@ void Call_METIS(
     }
 }
 
-void RectangleMesh::_ReoerientLocalBases(const int begin, const int end) {
+void RectangleMesh::_ReorientLocalBases(const int begin, const int end) {
     const int numPhi = 18, numTheta = 9;
     SegmentTree Phi(0, 2 * M_PI, numPhi);
     SegmentTree Theta(-M_PI_2, M_PI_2, numTheta);
@@ -283,73 +283,33 @@ void PrintSubmesh(const std::vector<Rectangle>& rectangles,
 }
 
 RectangleMesh::RectangleMesh(const double r): r(r) {
-    std::ifstream fin("mesh.ply", std::ios::in);
+    std::cout << "Reading mesh" << std::endl;
+    std::ifstream fin("input/main.txt");
+    
+    int nmodules;
+    fin >> nmodules;
 
-    int npoints = ParseIntFromString(fin, "element vertex ");
-    int ncells  = ParseIntFromString(fin, "element face ");
-    SkipHeader(fin);
+    std::cout << "Number of modules: " << nmodules << std::endl;
 
-    std::cout << "\nReading mesh\n";
-    std::cout << "Number of vertices: " << npoints << '\n';
-    std::cout << "Number of faces: " << ncells << '\n';
-
-    std::vector<double> coords(3 * npoints);
-    for (int i = 0; i < npoints; ++i) {
-        fin >> coords[3 * i];
-        fin >> coords[3 * i + 1];
-        fin >> coords[3 * i + 2];
+    _offsets.resize(nmodules);
+    for (int i = 0; i < nmodules; ++i) {
+        fin >> _offsets[i];
     }
 
-    std::vector<int> faces(4 * ncells);
-    for (int i = 0; i < ncells; ++i) {
-        fin.ignore(256, ' ');
-        fin >> faces[4 * i];
-        fin >> faces[4 * i + 1];
-        fin >> faces[4 * i + 2];
-        fin >> faces[4 * i + 3];
-    }
-    fin.close();
+    const int ncellsFull = _offsets.back(); 
+    std::cout << "Full number of cells: " << ncellsFull << std::endl; 
 
-    _data.resize(ncells);
-    for (int i = 0; i < 4*ncells; i += 4) {
-        Eigen::Vector3d a;
-        a << coords[3*faces[i]],   coords[3*faces[i] + 1],   coords[3*faces[i] + 2];
+    _moduleAreas.resize(nmodules);
+    _graphEdges.resize(nmodules);
+    _data.resize(ncellsFull);
+    _fullArea = 0.;
 
-        Eigen::Vector3d b;
-        b << coords[3*faces[i+1]], coords[3*faces[i+1] + 1], coords[3*faces[i+1] + 2];
-
-        Eigen::Vector3d c;
-        c << coords[3*faces[i+2]], coords[3*faces[i+2] + 1], coords[3*faces[i+2] + 2];
-
-        Eigen::Vector3d d;
-        d << coords[3*faces[i+3]], coords[3*faces[i+3] + 1], coords[3*faces[i+3] + 2];
-
-        _data[i / 4] = Rectangle(a, b, c, d);
-    }
-    std::cout << "Mesh is ready\n";
-
-    _area = 0.;
-    for (const auto& rectangle: _data) {
-        _area += rectangle.area;
+    for (int i = 0; i < nmodules; ++i) {
+        _ReadData(i);
+        _ReorientLocalBases(_offsets[i], _offsets[i+1]);
     }
 
-    std::cout << "Reading mesh dual graph\n";
-    std::string buffer;
-    fin.open("graph.txt", std::ios::in);
-    while (std::getline(fin, buffer)) {
-        std::stringstream stream(buffer);
-        int i, j;
-        stream >> i >> j;
-        _graphEdges.push_back({i, j});
-    }
-    std::vector<std::pair<int, int>> edges_reversed(_graphEdges.size());
-    for (int i = 0; i < edges_reversed.size(); ++i) {
-        edges_reversed[i] = {_graphEdges[i].second, _graphEdges[i].first};
-    }
-    _graphEdges.insert(_graphEdges.end(), edges_reversed.begin(), edges_reversed.end());
-    std::sort(_graphEdges.begin(), _graphEdges.end(),
-        [](const auto& a, const auto& b){ return a.first < b.first; });
-    std::cout << "Mesh graph is ready\n\n";
+    std::cout << "Reading mesh done\n" << std::endl;
 }
 
 void RectangleMesh::FormWaveletMatrix() {
@@ -431,8 +391,8 @@ void RectangleMesh::FormWaveletMatrix() {
     }
 
     _PrepareSpheres();
-    _ReoerientLocalBases(_wmatrix.starts[1], _wmatrix.ends[1]);
-    _ReoerientLocalBases(_wmatrix.starts[2], _wmatrix.ends[2]);
+    _ReorientLocalBases(_wmatrix.starts[1], _wmatrix.ends[1]);
+    _ReorientLocalBases(_wmatrix.starts[2], _wmatrix.ends[2]);
     _levels = level - 1;
 
     std::cout << "Wavelet matrix is ready" << std::endl;
@@ -441,6 +401,92 @@ void RectangleMesh::FormWaveletMatrix() {
     PrintSubmesh(_data, _wmatrix.starts[1],  _wmatrix.ends[1],  "submesh1.vtk");
     PrintSubmesh(_data, _wmatrix.starts[2],  _wmatrix.ends[2],  "submesh2.vtk");
     PrintSubmesh(_data, _wmatrix.starts[49], _wmatrix.ends[49], "submesh49.vtk");
+}
+
+void RectangleMesh::_PrepareSpheres() {
+    int nrows = _data.size();
+    _wmatrix.spheres.resize(nrows);
+    for (int row = 0; row < nrows; ++row) {
+        Eigen::Vector3d center;
+        center.fill(0.);
+        int n = _wmatrix.ends[row] - _wmatrix.starts[row];
+        for (int i = _wmatrix.starts[row]; i < _wmatrix.ends[row]; ++i) {
+            center += _data[i].center / n;
+        }
+        double radious = 0.;
+        for (int i = _wmatrix.starts[row]; i < _wmatrix.ends[row]; ++i) {
+            double new_radious = (_data[i].center - center).norm() + _data[i].diameter;
+            if (new_radious > radious) {
+                radious = new_radious;
+            }
+        }
+        radious *= r;
+        _wmatrix.spheres[row] = {radious, center};
+    }
+}
+
+void RectangleMesh::_ReadData(const int module) {
+    std::ifstream fin("input/mesh" + std::to_string(module) + ".ply", std::ios::in);
+
+    int npoints = ParseIntFromString(fin, "element vertex ");
+    int ncells  = ParseIntFromString(fin, "element face ");
+    SkipHeader(fin);
+
+    std::vector<double> coords(3 * npoints);
+    for (int i = 0; i < npoints; ++i) {
+        fin >> coords[3 * i];
+        fin >> coords[3 * i + 1];
+        fin >> coords[3 * i + 2];
+    }
+
+    std::vector<int> faces(4 * ncells);
+    for (int i = 0; i < ncells; ++i) {
+        fin.ignore(256, ' ');
+        fin >> faces[4 * i];
+        fin >> faces[4 * i + 1];
+        fin >> faces[4 * i + 2];
+        fin >> faces[4 * i + 3];
+    }
+    fin.close();
+
+    for (int i = 0; i < 4*ncells; i += 4) {
+        Eigen::Vector3d a;
+        a << coords[3*faces[i]],   coords[3*faces[i] + 1],   coords[3*faces[i] + 2];
+
+        Eigen::Vector3d b;
+        b << coords[3*faces[i+1]], coords[3*faces[i+1] + 1], coords[3*faces[i+1] + 2];
+
+        Eigen::Vector3d c;
+        c << coords[3*faces[i+2]], coords[3*faces[i+2] + 1], coords[3*faces[i+2] + 2];
+
+        Eigen::Vector3d d;
+        d << coords[3*faces[i+3]], coords[3*faces[i+3] + 1], coords[3*faces[i+3] + 2];
+
+        _data[_offsets[module] + i / 4] = Rectangle(a, b, c, d);
+    }
+
+    _moduleAreas[module] = 0.;
+    for (int i = _offsets[module]; i < _offsets[module + 1]; ++i) {
+        _moduleAreas[module] += _data[i].area;
+    }
+    _fullArea += _moduleAreas[module];
+
+    std::string buffer;
+    fin.open("input/graph" + std::to_string(module) + ".txt", std::ios::in);
+    _graphEdges[module].reserve(8 * ncells);
+    while (std::getline(fin, buffer)) {
+        std::stringstream stream(buffer);
+        int i, j;
+        stream >> i >> j;
+        _graphEdges[module].push_back({i, j});
+    }
+    std::vector<std::pair<int, int>> edges_reversed(_graphEdges[module].size());
+    for (int i = 0; i < edges_reversed.size(); ++i) {
+        edges_reversed[i] = {_graphEdges[module][i].second, _graphEdges[module][i].first};
+    }
+    _graphEdges[module].insert(_graphEdges[module].end(), edges_reversed.begin(), edges_reversed.end());
+    std::sort(_graphEdges[module].begin(), _graphEdges[module].end(),
+        [](const auto& a, const auto& b){ return a.first < b.first; });
 }
 
 }

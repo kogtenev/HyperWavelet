@@ -48,13 +48,6 @@ struct WaveletMatrix {
     std::vector<Sphere> spheres;
 };
 
-void GetConnectedComponents(
-    const int nvertices,
-    const std::vector<std::pair<int, int>>& edges,
-    std::vector<idx_t>& partition,
-    std::vector<std::vector<std::pair<int, int>>>& parts
-);
-
 class RectangleMesh {
 public:
     RectangleMesh(int nx, int ny, const std::function<Eigen::Vector3d(double, double)>& surfaceMap);
@@ -71,12 +64,13 @@ public:
     const std::vector<Rectangle>& Data() const {return _data;};
     const WaveletMatrix& GetWaveletMatrix() const {return _wmatrix;};
     
-    double Area() const {return _area;}
+    double Area() const {return _fullArea;}
     int Levels() const {return _levels;}
 
 private:
     std::vector<Rectangle> _data;
-    double _area;
+    std::vector<double> _moduleAreas;
+    double _fullArea;
 
     // for rectangle surface solver 
     std::function<Eigen::Vector3d(double, double)> surfaceMap;
@@ -84,13 +78,15 @@ private:
     int _ny;
 
     // for mesh graph in general case
-    std::vector<std::pair<int, int>> _graphEdges;
+    std::vector<std::vector<std::pair<int, int>>> _graphEdges;
+    std::vector<int> _offsets;
     WaveletMatrix _wmatrix;
     int _levels; 
     double r;
 
     void _PrepareSpheres();
-    void _ReoerientLocalBases(const int begin, const int end);
+    void _ReorientLocalBases(const int begin, const int end);
+    void _ReadData(const int module);
 }; 
 
 }

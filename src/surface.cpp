@@ -95,27 +95,6 @@ void RectangleMesh::HaarTransform() {
     std::cout << "Time for preparation: " << profiler.Toc() << " s.\n\n";
 }
 
-void RectangleMesh::_PrepareSpheres() {
-    int nrows = _data.size();
-    _wmatrix.spheres.resize(nrows);
-    for (int row = 0; row < nrows; ++row) {
-        Eigen::Vector3d center;
-        center.fill(0.);
-        int n = _wmatrix.ends[row] - _wmatrix.starts[row];
-        for (int i = _wmatrix.starts[row]; i < _wmatrix.ends[row]; ++i) {
-            center += _data[i].center / n;
-        }
-        double radious = 0.;
-        for (int i = _wmatrix.starts[row]; i < _wmatrix.ends[row]; ++i) {
-            double new_radious = (_data[i].center - center).norm() + _data[i].diameter;
-            if (new_radious > radious) {
-                radious = new_radious;
-            }
-        }
-        radious *= r;
-        _wmatrix.spheres[row] = {radious, center};
-    }
-}
 
 const std::function<Eigen::Vector3d(double, double)> _unitMap = [](double x, double y) {
     Eigen::Vector3d result;
