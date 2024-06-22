@@ -291,11 +291,11 @@ RectangleMesh::RectangleMesh(const double r): r(r) {
 
     std::cout << "Number of modules: " << nmodules << std::endl;
 
-    _offsets.resize(nmodules);
-    for (int i = 0; i < nmodules; ++i) {
-        fin >> _offsets[i];
+    _offsets.resize(nmodules+1);
+    for (int m = 0; m < nmodules+1; ++m) {
+        fin >> _offsets[m];
     }
-
+    
     const int ncellsFull = _offsets.back(); 
     std::cout << "Full number of cells: " << ncellsFull << std::endl; 
 
@@ -303,10 +303,10 @@ RectangleMesh::RectangleMesh(const double r): r(r) {
     _graphEdges.resize(nmodules);
     _data.resize(ncellsFull);
     _fullArea = 0.;
-
-    for (int i = 0; i < nmodules; ++i) {
-        _ReadData(i);
-        _ReorientLocalBases(_offsets[i], _offsets[i+1]);
+    
+    for (int m = 0; m < nmodules; ++m) {
+        _ReadData(m); 
+        _ReorientLocalBases(_offsets[m], _offsets[m+1]); 
     }
 
     std::cout << "Reading mesh done\n" << std::endl;
@@ -315,92 +315,23 @@ RectangleMesh::RectangleMesh(const double r): r(r) {
 void RectangleMesh::FormWaveletMatrix() {
     std::cout << "Forming wavelet matrix" << std::endl;
 
-    int nvertices = _data.size();
-    int diameter = nvertices;
+    const int meshSize = _data.size();
+    const int nmodules = _offsets.size() - 1;
 
-    _wmatrix.starts.resize(nvertices);
-    _wmatrix.medians.resize(nvertices);
-    _wmatrix.ends.resize(nvertices);
-    _wmatrix.rowLevels.resize(nvertices);
-
-    _wmatrix.starts[0] = 0;
-    _wmatrix.medians[0] = nvertices;
-    _wmatrix.ends[0] = nvertices;
-    _wmatrix.rowLevels[0] = 0;
-
-    std::vector<int> barriers = {0, nvertices};
-    std::vector<std::vector<std::pair<int, int>>> subgraphs_edges = {std::move(_graphEdges)};
-    int row = 1;
-    int level = 1;
-
-    while (diameter > 1) {
-        std::vector<int> new_barriers = {0};
-        std::vector<std::vector<std::pair<int, int>>> new_subgraph_edges;
-
-        for (int i = 0; i < subgraphs_edges.size(); ++i) {
-            nvertices = barriers[i+1] - barriers[i];
-
-            if (nvertices < 2) {
-                new_barriers.push_back(nvertices);
-                new_subgraph_edges.push_back(std::move(subgraphs_edges[i]));
-                continue;
-            }
-            
-            std::vector<idx_t> csr_starts(nvertices+1, 0), csr_list;
-
-            GraphEdgesToCsr(subgraphs_edges[i], csr_starts, csr_list);
-            std::vector<idx_t> partition(nvertices); 
-
-            Call_METIS(csr_starts, csr_list, partition); 
-            
-            std::map<int, int> left_pivoting, right_pivoting;
-            GetPivoting(partition, left_pivoting, right_pivoting);
-
-            std::vector<std::pair<int, int>> left_edges, right_edges;
-            SplitEdges(subgraphs_edges[i], partition, left_edges, right_edges);
-            
-            RenumberVertices(left_edges, left_pivoting);
-            RenumberVertices(right_edges, right_pivoting);
-
-            ReorderMesh(barriers[i], partition, _data);
-
-            new_barriers.push_back(left_pivoting.size());
-            new_barriers.push_back(right_pivoting.size());
-
-            new_subgraph_edges.push_back(std::move(left_edges));
-            new_subgraph_edges.push_back(std::move(right_edges));
-
-            _wmatrix.starts[row] = barriers[i];
-            _wmatrix.medians[row] = barriers[i] + left_pivoting.size();
-            _wmatrix.ends[row] = barriers[i+1];
-            _wmatrix.rowLevels[row] = level;
-            
-            ++row;
-        }
-        std::partial_sum(new_barriers.begin(), new_barriers.end(), new_barriers.begin());
-        barriers = std::move(new_barriers);
-
-        subgraphs_edges = std::move(new_subgraph_edges);
-        diameter = GetDiameter(barriers);
-
-        ++level; 
+    _wmatrix.starts.resize(meshSize);
+    _wmatrix.medians.resize(meshSize);
+    _wmatrix.ends.resize(meshSize);
+    _wmatrix.rowLevels.resize(meshSize);
+    _wmatrix.modules.resize(meshSize);
+    _levels.resize(nmodules);
+    
+    for (int m = 0; m < nmodules; ++m) { 
+        _FormWaveletSubmatrix(m); 
     }
-
-    if (row != _data.size()) {
-        throw std::runtime_error("Cannot prepare wavelet matrix!");
-    }
-
     _PrepareSpheres();
-    _ReorientLocalBases(_wmatrix.starts[1], _wmatrix.ends[1]);
-    _ReorientLocalBases(_wmatrix.starts[2], _wmatrix.ends[2]);
-    _levels = level - 1;
 
     std::cout << "Wavelet matrix is ready" << std::endl;
-    std::cout << "Number of levels: " << level - 1 << '\n' << std::endl;
-
-    PrintSubmesh(_data, _wmatrix.starts[1],  _wmatrix.ends[1],  "submesh1.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[2],  _wmatrix.ends[2],  "submesh2.vtk");
-    PrintSubmesh(_data, _wmatrix.starts[49], _wmatrix.ends[49], "submesh49.vtk");
+    std::cout << "Max. number of levels: " << *std::max_element(_levels.begin(), _levels.end()) << '\n' << std::endl;
 }
 
 void RectangleMesh::_PrepareSpheres() {
@@ -487,6 +418,85 @@ void RectangleMesh::_ReadData(const int module) {
     _graphEdges[module].insert(_graphEdges[module].end(), edges_reversed.begin(), edges_reversed.end());
     std::sort(_graphEdges[module].begin(), _graphEdges[module].end(),
         [](const auto& a, const auto& b){ return a.first < b.first; });
+}
+
+void RectangleMesh::_FormWaveletSubmatrix(const int module) {
+    int nvertices = _offsets[module + 1] - _offsets[module]; 
+    int row = _offsets[module];
+
+    _wmatrix.starts[row] = _offsets[module];
+    _wmatrix.medians[row] = _offsets[module + 1]; 
+    _wmatrix.ends[row] = _offsets[module + 1]; 
+    _wmatrix.rowLevels[row] = 0;
+
+    ++row;
+
+    std::vector<int> barriers = {0, nvertices};
+    std::vector<std::vector<std::pair<int, int>>> subgraphs_edges = {std::move(_graphEdges[module])};
+    int diameter = nvertices;
+    int level = 1;
+
+    while (diameter > 1) {
+        std::vector<int> new_barriers = {0};
+        std::vector<std::vector<std::pair<int, int>>> new_subgraph_edges;
+
+        for (int i = 0; i < subgraphs_edges.size(); ++i) {
+            nvertices = barriers[i+1] - barriers[i];
+
+            if (nvertices < 2) {
+                new_barriers.push_back(nvertices);
+                new_subgraph_edges.push_back(std::move(subgraphs_edges[i]));
+                continue;
+            }
+            
+            std::vector<idx_t> csr_starts(nvertices+1, 0), csr_list;
+
+            GraphEdgesToCsr(subgraphs_edges[i], csr_starts, csr_list);
+            std::vector<idx_t> partition(nvertices); 
+
+            Call_METIS(csr_starts, csr_list, partition); 
+            
+            std::map<int, int> left_pivoting, right_pivoting;
+            GetPivoting(partition, left_pivoting, right_pivoting);
+
+            std::vector<std::pair<int, int>> left_edges, right_edges;
+            SplitEdges(subgraphs_edges[i], partition, left_edges, right_edges);
+            
+            RenumberVertices(left_edges, left_pivoting);
+            RenumberVertices(right_edges, right_pivoting);
+
+            ReorderMesh(_offsets[module] + barriers[i], partition, _data);
+
+            new_barriers.push_back(left_pivoting.size());
+            new_barriers.push_back(right_pivoting.size());
+
+            new_subgraph_edges.push_back(std::move(left_edges));
+            new_subgraph_edges.push_back(std::move(right_edges));
+
+            _wmatrix.starts[row] = _offsets[module] + barriers[i];
+            _wmatrix.medians[row] = _offsets[module] + barriers[i] + left_pivoting.size();
+            _wmatrix.ends[row] = _offsets[module] + barriers[i+1];
+            _wmatrix.rowLevels[row] = level;
+            _wmatrix.modules[row] = module;
+            
+            ++row;
+        }
+        std::partial_sum(new_barriers.begin(), new_barriers.end(), new_barriers.begin());
+        barriers = std::move(new_barriers);
+
+        subgraphs_edges = std::move(new_subgraph_edges);
+        diameter = GetDiameter(barriers);
+
+        ++level; 
+    }
+
+    if (row != _offsets[module + 1]) {
+        throw std::runtime_error("Cannot prepare wavelet matrix!");
+    }
+
+    _levels[module] = level - 1;
+
+    PrintSubmesh(_data, _offsets[module], _offsets[module+1], "module" + std::to_string(module) + ".vtk");
 }
 
 }

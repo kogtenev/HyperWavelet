@@ -45,6 +45,7 @@ struct WaveletMatrix {
     std::vector<int> medians;
     std::vector<int> ends;
     std::vector<int> rowLevels;
+    std::vector<int> modules;
     std::vector<Sphere> spheres;
 };
 
@@ -65,7 +66,7 @@ public:
     const WaveletMatrix& GetWaveletMatrix() const {return _wmatrix;};
     
     double Area() const {return _fullArea;}
-    int Levels() const {return _levels;}
+    const std::vector<int>& Levels() const {return _levels;}
 
 private:
     std::vector<Rectangle> _data;
@@ -81,12 +82,13 @@ private:
     std::vector<std::vector<std::pair<int, int>>> _graphEdges;
     std::vector<int> _offsets;
     WaveletMatrix _wmatrix;
-    int _levels; 
+    std::vector<int> _levels; 
     double r;
 
     void _PrepareSpheres();
     void _ReorientLocalBases(const int begin, const int end);
     void _ReadData(const int module);
+    void _FormWaveletSubmatrix(const int module);
 }; 
 
 }

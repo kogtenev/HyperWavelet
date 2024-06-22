@@ -153,8 +153,8 @@ void SurphaseWavelet(Vector& x, const WaveletMatrix& wmatrix) {
     for (int row = 0; row < x.size(); ++row) {
         double N1 = wmatrix.medians[row] - wmatrix.starts[row];
         double N2 = wmatrix.ends[row] - wmatrix.medians[row];
-        double left  = (row > 0) ?  1. * N2 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 1. / sqrt(N1);
-        double right = (row > 0) ? -1. * N1 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 0.;
+        double left  = (wmatrix.ends[row] != wmatrix.medians[row]) ?  1. * N2 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 1. / sqrt(N1);
+        double right = (wmatrix.ends[row] != wmatrix.medians[row]) ? -1. * N1 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 0.;
         for (int col = wmatrix.starts[row]; col < wmatrix.medians[row]; ++col) {
             y[row] += left * x[col];
         }
@@ -175,8 +175,8 @@ void SurphaseWaveletInverse(Vector& x, const WaveletMatrix& wmatrix) {
     for (int col = 0; col < x.size(); ++col) {
         double N1 = wmatrix.medians[col] - wmatrix.starts[col];
         double N2 = wmatrix.ends[col] - wmatrix.medians[col];
-        double left  = (col > 0) ?  1. * N2 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 1. / sqrt(N1);
-        double right = (col > 0) ? -1. * N1 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 0.;
+        double left  = (wmatrix.ends[col] != wmatrix.medians[col]) ?  1. * N2 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 1. / sqrt(N1);
+        double right = (wmatrix.ends[col] != wmatrix.medians[col]) ? -1. * N1 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 0.;
         #pragma omp parallel for
         for (int row = wmatrix.starts[col]; row < wmatrix.medians[col]; ++row) {
             y[row] += left * x[col];

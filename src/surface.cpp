@@ -617,6 +617,7 @@ void SurfaceSolver::FormMatrixCompressed(bool print) {
         }
         rowStarts.push_back(nnz);
     }
+    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / _dim / _dim << "\n";
 
     for (int k = 0; k < N; k++) {
         Eigen::MatrixXcd blockB;
@@ -629,8 +630,8 @@ void SurfaceSolver::FormMatrixCompressed(bool print) {
 
             double N1 = wmatrix.medians[i] - wmatrix.starts[i];
             double N2 = wmatrix.ends[i] - wmatrix.medians[i];
-            double left  = (i > 0) ?  1. * N2 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 1. / sqrt(N1);
-            double right = (i > 0) ? -1. * N1 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 0.;
+            double left  = (wmatrix.ends[i] != wmatrix.medians[i]) ?  1. * N2 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 1. / sqrt(N1);
+            double right = (wmatrix.ends[i] != wmatrix.medians[i]) ? -1. * N1 / std::sqrt(N1*N1*N2 + N2*N2*N1) : 0.;
             double wavelet = (k < wmatrix.medians[i]) ? left : right;
 
             for (size_t tr = rowStarts[i]; tr < rowStarts[i+1]; tr += 4) {
@@ -653,7 +654,6 @@ void SurfaceSolver::FormMatrixCompressed(bool print) {
 
     _truncMatrix.setFromTriplets(triplets.begin(), triplets.end());
     std::cout << "Time for truncated matrix forming: " << profiler.Toc() << " s.\n"; 
-    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / _dim / _dim << "\n";
 
     if (print) {
         std::ofstream fout("trunc_mat.txt", std::ios::out);
@@ -753,7 +753,9 @@ double SurfaceSolver::_SuperDistance(int i, int j) const {
 double SurfaceSolver::_epsilon(const WaveletMatrix& wmatrix, int i, int j) {
     int lI = wmatrix.rowLevels[i];
     int lJ = wmatrix.rowLevels[j];
-    return _mesh.Area() * std::pow(2., _lambda * _mesh.Levels() / 3 - _alpha / 3 * (lI + lJ));
+    int nI = _mesh.Levels()[wmatrix.modules[i]];
+    int nJ = _mesh.Levels()[wmatrix.modules[j]];
+    return _mesh.Area() * std::pow(2., _lambda * (nI + nJ) / 2  - _alpha / 3 * (lI + lJ));
 }
 
 void SurfaceSolver::EstimateErrors(const Eigen::VectorXcd& exact, const Eigen::VectorXcd& approx) {

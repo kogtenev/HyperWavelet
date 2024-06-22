@@ -7,6 +7,7 @@
 #include "helpers.h"
 
 using namespace std;
+using namespace std::complex_literals;
 using namespace hyper_wavelet;
 using namespace hyper_wavelet_2d;
 
@@ -23,7 +24,7 @@ int main(int argc, char* argv[]) {
 
     cout << "Wave number: " << k << endl;
     cout << "alpha  = " << alpha << endl;
-    cout << "lambda = " << alpha << endl;
+    cout << "lambda = " << lambda << endl;
     cout << "r = " << r << endl;
 
     SurfaceSolver solver(k, alpha, lambda, r);
@@ -32,14 +33,14 @@ int main(int argc, char* argv[]) {
     for (int n = 0; n < 181; ++n) {
         const double phi = 2 * M_PI * 2 * n / 360;
         const function<Eigen::Vector3cd(const Eigen::Vector3d&)> f = [&k, &phi](const Eigen::Vector3d& r) {
-            const complex<double> i = {0., 1.};
             Eigen::Vector3cd _k, E0;
             _k << k * cos(phi), k * sin(phi), 0.;
             E0 << 0, 0, 1.;
-            E0 *= exp(i * _k.dot(r.cast<complex<double>>()));
+            E0 *= exp(1i * _k.dot(r.cast<complex<double>>()));
             return E0; 
         };
         solver.FormRhs(f);
+        const auto& rhs = solver.GetRhs();
         solver.WaveletTransform();
         fullRhs.col(n) = solver.GetRhs();
     }
