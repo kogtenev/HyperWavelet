@@ -1,6 +1,11 @@
 #pragma once
 
 #include <vector>
+
+#ifdef USE_MKL_PARDISO
+    #define EIGEN_USE_MKL_ALL
+#endif
+
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 

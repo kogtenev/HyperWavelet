@@ -2,9 +2,14 @@
 
 #include <cmath>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <ctime>
 #include <numeric>
+
+#ifdef USE_MKL_PARDISO
+    #define EIGEN_USE_MKL_ALL
+#endif
 
 #include <Eigen/Dense>
 #include "metis.h"
@@ -70,9 +75,23 @@ public:
 private:
     Eigen::Vector3d e1, e2, e3;
     const double eps = 1e-14;
-
 };
 
 int DistanceToTrue(const int row, const int col, const Eigen::Array<bool, Eigen::Dynamic, Eigen::Dynamic>& array);
+
+class Logger {
+public:
+    void Open(const std::string& fname) { _stream.open(fname, std::ios::out); }
+    std::ofstream& Stream() { return _stream; }
+private:
+    std::ofstream _stream;
+};
+
+template<typename T>
+Logger& operator<<(Logger& logger, const T& t) {
+    std::cout << t;
+    logger.Stream() << t;
+    return logger;
+}
 
 }

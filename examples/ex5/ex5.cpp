@@ -68,8 +68,13 @@ int main(int argc, char* argv[]) {
     profiler.Tic();
     Eigen::MatrixXcd x(fullRhs.rows(), fullRhs.cols());
     {
-        Eigen::PartialPivLU<Eigen::MatrixXcd> lu(A);
-        x = lu.solve(fullRhs);
+        #ifdef USE_MKL_PARDISO
+            Eigen::PardisoLU<Eigen::MatrixXcd> lu(A);
+            x = lu.solve(fullRhs);
+        #else
+            Eigen::PartialPivLU<Eigen::MatrixXcd> lu(A);
+            x = lu.solve(fullRhs);
+        #endif
     }
     cout << "Time for solution: " << profiler.Toc() << endl;
 

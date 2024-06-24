@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef USE_MKL_PARDISO
+    #define EIGEN_USE_MKL_ALL
+#endif
+
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include "mesh.h"
@@ -88,7 +92,8 @@ private:
     double _SuperDistance(int i, int j) const;
     double _epsilon(const WaveletMatrix& wmatrix, int i, int j);
     void _formBlockRow(Eigen::MatrixXcd& blockRow, int k);
-    double _alpha = 3, _lambda = 3;
+    double _alpha = 3, _lambda = 3, _r = 2;
+    double _nnzProp;
 };
 
 inline double SphereDistance(const Sphere& s1, const Sphere& s2);

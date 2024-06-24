@@ -13,6 +13,7 @@ include_directories(~/local/include)
 
 add_compile_options(-O3 -std=c++17 -fopenmp)
 add_link_options(-lpthread -fopenmp)
+#add_compile_definitions(USE_MKL_PARDISO)
 
 add_subdirectory(src)
 add_subdirectory(examples)

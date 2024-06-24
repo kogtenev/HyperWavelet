@@ -549,7 +549,7 @@ SurfaceSolver::SurfaceSolver(
     const double alpha, 
     const double lambda, 
     const double r
-): RectangleSurfaceSolver(k), _alpha(alpha), _lambda(lambda) 
+): RectangleSurfaceSolver(k), _alpha(alpha), _lambda(lambda), _r(r) 
 {
     _mesh = RectangleMesh(r);
     _dim = 2 * _mesh.Data().size();
@@ -617,7 +617,8 @@ void SurfaceSolver::FormMatrixCompressed(bool print) {
         }
         rowStarts.push_back(nnz);
     }
-    std::cout << "Proportion of nonzeros: " << 1. * triplets.size() / _dim / _dim << "\n";
+    _nnzProp = 1. * triplets.size() / _dim / _dim;
+    std::cout << "Proportion of nonzeros: " << _nnzProp << "\n";
 
     for (int k = 0; k < N; k++) {
         Eigen::MatrixXcd blockB;
@@ -680,6 +681,12 @@ void SurfaceSolver::PrintEsa(const Eigen::VectorXcd& x, const std::string& fname
 void SurfaceSolver::PrintEsaInverse(const Eigen::MatrixXcd& x, const std::string& fname) const {
     const int N = 181;
     std::ofstream fout(fname, std::ios::out);
+    fout << _dim << '\n';
+    fout << _k << '\n';
+    fout << _nnzProp << '\n';
+    fout << _alpha << '\n';
+    fout << _lambda << '\n';
+    fout << _r << '\n';
     const auto& wmatrix = _mesh.GetWaveletMatrix();
     for (int i = 0; i < N; ++i) {
         Eigen::VectorXcd y = x.col(i);

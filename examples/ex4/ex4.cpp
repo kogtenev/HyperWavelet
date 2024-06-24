@@ -3,6 +3,10 @@
 #include <cmath>
 #include <complex>
 
+#ifdef USE_MKL_PARDISO
+    #define EIGEN_USE_MKL_ALL
+#endif
+
 #include <unsupported/Eigen/IterativeSolvers>
 #include "petscsys.h"  
 
