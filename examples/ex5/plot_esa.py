@@ -1,10 +1,13 @@
+import sys
 import numpy as np
 from numpy import linalg
 import pymesh
 import matplotlib.pyplot as plt
 
-dense_file  = 'esa.txt'
-sparse_file = 'esa_sparse.txt'
+attempt = str(sys.argv[1])
+
+dense_file  = 'esa' + attempt + '.txt'
+sparse_file = 'esa_sparse' + attempt + '.txt'
 
 data = np.loadtxt(dense_file)
 
@@ -32,4 +35,4 @@ plt.title('N = ' + str(N) + ', k = ' + str(k) + ', ' + str(nnz) + '%' )
 plt.xlabel(r'$\varphi$, градусы')
 plt.ylabel(r'$\sigma$, dB')
 plt.grid()
-plt.show()
+plt.savefig('esa' + attempt + '.png')

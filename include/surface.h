@@ -84,7 +84,7 @@ public:
     void FormMatrixCompressed(bool print=false);
     void PrintSolutionVtk(const Eigen::VectorXcd x) const { _printVtk(x); }
     void PrintEsa(const Eigen::VectorXcd& x, const std::string& fname) const;
-    void PrintEsaInverse(const Eigen::MatrixXcd& x, const std::string& fname) const;
+    void PrintEsaInverse(const Eigen::MatrixXcd& x, const std::string& fnamePrefix, int attempt) const;
     void EstimateErrors(const Eigen::VectorXcd& exact, const Eigen::VectorXcd& approx);
 
 private:

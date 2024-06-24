@@ -678,9 +678,9 @@ void SurfaceSolver::PrintEsa(const Eigen::VectorXcd& x, const std::string& fname
     fout.close();
 }
 
-void SurfaceSolver::PrintEsaInverse(const Eigen::MatrixXcd& x, const std::string& fname) const {
+void SurfaceSolver::PrintEsaInverse(const Eigen::MatrixXcd& x, const std::string& fnamePrefix, int attempt) const {
     const int N = 181;
-    std::ofstream fout(fname, std::ios::out);
+    std::ofstream fout(fnamePrefix + std::to_string(attempt) + ".txt", std::ios::out);
     fout << _dim << '\n';
     fout << _k << '\n';
     fout << _nnzProp << '\n';
